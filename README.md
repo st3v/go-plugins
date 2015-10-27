@@ -1,4 +1,4 @@
-# Go Plugins [![GoDoc](https://godoc.org/github.com/myodc/go-plugins?status.svg)](https://godoc.org/github.com/myodc/go-plugins)
+# Go Plugins [![GoDoc](https://godoc.org/github.com/myodc/go-plugins?status.svg)](https://godoc.org/github.com/myodc/go-plugins) [![Travis CI](https://travis-ci.org/myodc/go-plugins.svg?branch=master)](https://travis-ci.org/myodc/go-plugins)
 
 A repository for go-micro plugins.
 
