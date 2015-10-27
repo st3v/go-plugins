@@ -14,6 +14,7 @@ import (
 
 func main() {
 	cmd.Registries["kubernetes"] = kubernetes.NewRegistry
+	cmd.Init()
 }
 ```
 
