@@ -28,13 +28,13 @@ func (c *kregistry) Register(s *registry.Service) error {
 	return nil
 }
 
-func (c *kregistry) GetService(name string) (*registry.Service, error) {
+func (c *kregistry) GetService(name string) ([]*registry.Service, error) {
 	c.mtx.RLock()
 	svc, ok := c.services[name]
 	c.mtx.RUnlock()
 
 	if ok {
-		return svc, nil
+		return []*registry.Service{svc}, nil
 	}
 
 	selector := labels.SelectorFromSet(labels.Set{"name": name})
@@ -59,7 +59,7 @@ func (c *kregistry) GetService(name string) (*registry.Service, error) {
 		})
 	}
 
-	return ks, nil
+	return []*registry.Service{ks}, nil
 }
 
 func (c *kregistry) ListServices() ([]*registry.Service, error) {
