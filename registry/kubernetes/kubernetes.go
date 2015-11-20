@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/myodc/go-micro/registry"
+	"github.com/micro/go-micro/registry"
 
 	k8s "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/fields"

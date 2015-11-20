@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"net"
 
-	"github.com/myodc/go-micro/registry"
+	"github.com/micro/go-micro/registry"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"

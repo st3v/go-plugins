@@ -1,4 +1,4 @@
-# Go Plugins [![GoDoc](https://godoc.org/github.com/myodc/go-plugins?status.svg)](https://godoc.org/github.com/myodc/go-plugins) [![Travis CI](https://travis-ci.org/myodc/go-plugins.svg?branch=master)](https://travis-ci.org/myodc/go-plugins)
+# Go Plugins [![GoDoc](https://godoc.org/github.com/micro/go-plugins?status.svg)](https://godoc.org/github.com/micro/go-plugins) [![Travis CI](https://travis-ci.org/micro/go-plugins.svg?branch=master)](https://travis-ci.org/micro/go-plugins)
 
 A repository for go-micro plugins.
 
@@ -8,8 +8,8 @@ Plugins can be added to go-micro in the following ways
 
 ```go
 import (
-	"github.com/myodc/go-micro/cmd"
-	"github.com/myodc/go-plugins/registry/kubernetes"
+	"github.com/micro/go-micro/cmd"
+	"github.com/micro/go-plugins/registry/kubernetes"
 )
 
 func main() {
@@ -22,7 +22,7 @@ OR
 
 ```go
 import (
-	"github.com/myodc/go-plugins/registry/kubernetes"
+	"github.com/micro/go-plugins/registry/kubernetes"
 )
 
 func main() {
