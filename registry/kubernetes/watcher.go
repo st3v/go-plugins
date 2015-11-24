@@ -71,7 +71,7 @@ func newWatcher(kr *kregistry) (registry.Watcher, error) {
 		return nil, err
 	}
 
-	watch, err := svi.Watch(labels.Everything(), fields.Everything(), services.ResourceVersion)
+	watch, err := svi.Watch(labels.Everything(), fields.Everything(), api.ListOptions{ResourceVersion: services.ResourceVersion})
 	if err != nil {
 		return nil, err
 	}
