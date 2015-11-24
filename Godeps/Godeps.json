@@ -1,0 +1,10 @@
+{
+	"ImportPath": "github.com/micro/go-plugins",
+	"GoVersion": "go1.5.1",
+	"Deps": [
+		{
+			"ImportPath": "github.com/ugorji/go/codec",
+			"Rev": "8a2a3a8c488c3ebd98f422a965260278267a0551"
+		}
+	]
+}
