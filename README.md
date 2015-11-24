@@ -26,6 +26,6 @@ import (
 )
 
 func main() {
-	c kubernetes.NewRegistry([]string{}) // default to using env vars for master API
+	r := kubernetes.NewRegistry([]string{}) // default to using env vars for master API
 }
 ```
