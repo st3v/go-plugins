@@ -1,24 +1,25 @@
 # Go Plugins [![GoDoc](https://godoc.org/github.com/micro/go-plugins?status.svg)](https://godoc.org/github.com/micro/go-plugins) [![Travis CI](https://travis-ci.org/micro/go-plugins.svg?branch=master)](https://travis-ci.org/micro/go-plugins)
 
-A repository for go-micro plugins.
+A repository for go-micro and go-platform plugins.
 
 ## Usage
 
-Plugins can be added to go-micro in the following ways
+Plugins can be added to go-micro in the following ways. By doing so they'll be available to set via command line args or environment variables.
 
 ```go
 import (
 	"github.com/micro/go-micro/cmd"
-	"github.com/micro/go-plugins/registry/kubernetes"
+	_ "github.com/micro/go-plugins/broker/rabbitmq"
+	_ "github.com/micro/go-plugins/registry/kubernetes"
+	_ "github.com/micro/go-plugins/transport/nats"
 )
 
 func main() {
-	cmd.Registries["kubernetes"] = kubernetes.NewRegistry
 	cmd.Init()
 }
 ```
 
-OR
+OR use them directly
 
 ```go
 import (

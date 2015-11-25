@@ -5,6 +5,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
 
 	k8s "k8s.io/kubernetes/pkg/client/unversioned"
@@ -18,6 +19,10 @@ type kregistry struct {
 
 	mtx      sync.RWMutex
 	services map[string]*registry.Service
+}
+
+func init() {
+	cmd.Registries["kubernetes"] = NewRegistry
 }
 
 func (c *kregistry) Deregister(s *registry.Service) error {
