@@ -5,6 +5,7 @@ import (
 
 	"github.com/micro/go-micro/registry"
 	"k8s.io/kubernetes/pkg/api"
+	uv "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/watch"
@@ -71,7 +72,7 @@ func newWatcher(kr *kregistry) (registry.Watcher, error) {
 		return nil, err
 	}
 
-	watch, err := svi.Watch(labels.Everything(), fields.Everything(), api.ListOptions{ResourceVersion: services.ResourceVersion})
+	watch, err := svi.Watch(labels.Everything(), fields.Everything(), uv.ListOptions{ResourceVersion: services.ResourceVersion})
 	if err != nil {
 		return nil, err
 	}
