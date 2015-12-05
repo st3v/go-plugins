@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"errors"
 	"net"
 
 	"github.com/micro/go-micro/registry"
@@ -14,6 +15,7 @@ import (
 type watcher struct {
 	registry *kregistry
 	watcher  watch.Interface
+	next     chan *registry.Result
 }
 
 func (k *watcher) update(event watch.Event) {
@@ -34,34 +36,45 @@ func (k *watcher) update(event watch.Event) {
 		return
 	}
 
+	var action string
 	switch event.Type {
-	case watch.Added, watch.Modified:
+	case watch.Added:
+		action = "create"
+	case watch.Modified:
+		action = "update"
 	case watch.Deleted:
-		k.registry.mtx.Lock()
-		delete(k.registry.services, name)
-		k.registry.mtx.Unlock()
-		return
+		action = "delete"
 	default:
 		return
 	}
 
 	serviceIP := net.ParseIP(service.Spec.ClusterIP)
 
-	k.registry.mtx.Lock()
-	k.registry.services[name] = &registry.Service{
-		Name: name,
-		Nodes: []*registry.Node{
-			&registry.Node{
-				Address: serviceIP.String(),
-				Port:    service.Spec.Ports[0].Port,
+	k.next <- &registry.Result{
+		Action: action,
+		Service: &registry.Service{
+			Name: name,
+			Nodes: []*registry.Node{
+				&registry.Node{
+					Address: serviceIP.String(),
+					Port:    service.Spec.Ports[0].Port,
+				},
 			},
 		},
 	}
-	k.registry.mtx.Unlock()
+}
+
+func (k *watcher) Next() (*registry.Result, error) {
+	r, ok := <-k.next
+	if !ok {
+		return nil, errors.New("result chan closed")
+	}
+	return r, nil
 }
 
 func (k *watcher) Stop() {
 	k.watcher.Stop()
+	close(k.next)
 }
 
 func newWatcher(kr *kregistry) (registry.Watcher, error) {
@@ -80,6 +93,7 @@ func newWatcher(kr *kregistry) (registry.Watcher, error) {
 	w := &watcher{
 		registry: kr,
 		watcher:  watch,
+		next:     make(chan *registry.Result, 10),
 	}
 
 	go func() {

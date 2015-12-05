@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
@@ -16,9 +15,6 @@ import (
 type kregistry struct {
 	client    *k8s.Client
 	namespace string
-
-	mtx      sync.RWMutex
-	services map[string]*registry.Service
 }
 
 func init() {
@@ -34,14 +30,6 @@ func (c *kregistry) Register(s *registry.Service) error {
 }
 
 func (c *kregistry) GetService(name string) ([]*registry.Service, error) {
-	c.mtx.RLock()
-	svc, ok := c.services[name]
-	c.mtx.RUnlock()
-
-	if ok {
-		return []*registry.Service{svc}, nil
-	}
-
 	selector := labels.SelectorFromSet(labels.Set{"name": name})
 
 	services, err := c.client.Services(c.namespace).List(selector, fields.Everything())
@@ -68,18 +56,7 @@ func (c *kregistry) GetService(name string) ([]*registry.Service, error) {
 }
 
 func (c *kregistry) ListServices() ([]*registry.Service, error) {
-	c.mtx.RLock()
-	serviceMap := c.services
-	c.mtx.RUnlock()
-
 	var services []*registry.Service
-
-	if len(serviceMap) > 0 {
-		for _, service := range serviceMap {
-			services = append(services, service)
-		}
-		return services, nil
-	}
 
 	rsp, err := c.client.Services(c.namespace).List(labels.Everything(), fields.Everything())
 	if err != nil {
@@ -116,7 +93,6 @@ func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
 	kr := &kregistry{
 		client:    client,
 		namespace: "default",
-		services:  make(map[string]*registry.Service),
 	}
 
 	return kr

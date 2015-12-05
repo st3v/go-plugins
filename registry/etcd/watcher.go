@@ -1,151 +1,84 @@
 package etcd
 
 import (
+	"errors"
+	"sync"
+
 	etcd "github.com/coreos/etcd/client"
 	"github.com/micro/go-micro/registry"
 	"golang.org/x/net/context"
 )
 
 type etcdWatcher struct {
-	registry *etcdRegistry
-	stop     chan bool
-}
-
-func addNodes(old, neu []*registry.Node) []*registry.Node {
-	for _, n := range neu {
-		var seen bool
-		for i, o := range old {
-			if o.Id == n.Id {
-				seen = true
-				old[i] = n
-				break
-			}
-		}
-		if !seen {
-			old = append(old, n)
-		}
-	}
-	return old
-}
-
-func addServices(old, neu []*registry.Service) []*registry.Service {
-	for _, s := range neu {
-		var seen bool
-		for i, o := range old {
-			if o.Version == s.Version {
-				s.Nodes = addNodes(o.Nodes, s.Nodes)
-				seen = true
-				old[i] = s
-				break
-			}
-		}
-		if !seen {
-			old = append(old, s)
-		}
-	}
-	return old
-}
-
-func delNodes(old, del []*registry.Node) []*registry.Node {
-	var nodes []*registry.Node
-	for _, o := range old {
-		var rem bool
-		for _, n := range del {
-			if o.Id == n.Id {
-				rem = true
-				break
-			}
-		}
-		if !rem {
-			nodes = append(nodes, o)
-		}
-	}
-	return nodes
-}
-
-func delServices(old, del []*registry.Service) []*registry.Service {
-	var services []*registry.Service
-	for i, o := range old {
-		var rem bool
-		for _, s := range del {
-			if o.Version == s.Version {
-				old[i].Nodes = delNodes(o.Nodes, s.Nodes)
-				if len(old[i].Nodes) == 0 {
-					rem = true
-				}
-			}
-		}
-		if !rem {
-			services = append(services, o)
-		}
-	}
-	return services
+	ctx  context.Context
+	once sync.Once
+	stop chan bool
+	w    etcd.Watcher
 }
 
 func newEtcdWatcher(r *etcdRegistry) (registry.Watcher, error) {
-	ew := &etcdWatcher{
-		registry: r,
-		stop:     make(chan bool),
-	}
-
-	w := r.client.Watcher(prefix, &etcd.WatcherOptions{AfterIndex: 0, Recursive: true})
-
-	c := context.Background()
-	ctx, cancel := context.WithCancel(c)
+	var once sync.Once
+	ctx, cancel := context.WithCancel(context.Background())
+	stop := make(chan bool, 1)
 
 	go func() {
-		<-ew.stop
+		<-stop
 		cancel()
 	}()
 
-	go ew.watch(ctx, w)
-
-	return ew, nil
+	return &etcdWatcher{
+		ctx:  ctx,
+		w:    r.client.Watcher(prefix, &etcd.WatcherOptions{AfterIndex: 0, Recursive: true}),
+		once: once,
+		stop: stop,
+	}, nil
 }
 
-func (e *etcdWatcher) watch(ctx context.Context, w etcd.Watcher) {
+func (ew *etcdWatcher) Next() (*registry.Result, error) {
 	for {
-		rsp, err := w.Next(ctx)
-		if err != nil && ctx.Err() != nil {
-			return
+		rsp, err := ew.w.Next(ew.ctx)
+		if err != nil && ew.ctx.Err() != nil {
+			return nil, err
 		}
 
 		if rsp.Node.Dir {
 			continue
 		}
 
-		s := decode(rsp.Node.Value)
-		if s == nil {
-			continue
-		}
-
-		e.registry.Lock()
-
-		service, ok := e.registry.services[s.Name]
-		if !ok {
-			if rsp.Action == "create" {
-				e.registry.services[s.Name] = []*registry.Service{s}
+		service := decode(rsp.Node.Value)
+		if service == nil {
+			switch {
+			case rsp.Action != "delete":
+				continue
+			case rsp.PrevNode == nil:
+				continue
 			}
-			e.registry.Unlock()
-			continue
+			// last ditch effort
+			service = decode(rsp.PrevNode.Value)
+			if service == nil {
+				continue
+			}
 		}
 
 		switch rsp.Action {
-		case "delete":
-			services := delServices(service, []*registry.Service{s})
-			if len(services) > 0 {
-				e.registry.services[s.Name] = services
-			} else {
-				delete(e.registry.services, s.Name)
+		case "set", "delete", "create", "update":
+			if rsp.Action == "set" {
+				rsp.Action = "update"
 			}
-		case "create":
-			e.registry.services[s.Name] = addServices(service, []*registry.Service{s})
+			return &registry.Result{
+				Action:  rsp.Action,
+				Service: service,
+			}, nil
+		default:
+			continue
 		}
 
-		e.registry.Unlock()
 	}
+	return nil, errors.New("could not get next")
 }
 
 func (ew *etcdWatcher) Stop() {
-	ew.stop <- true
+	ew.once.Do(func() {
+		ew.stop <- true
+	})
 }

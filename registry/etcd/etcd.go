@@ -19,9 +19,6 @@ var (
 
 type etcdRegistry struct {
 	client etcd.KeysAPI
-
-	sync.RWMutex
-	services map[string][]*registry.Service
 }
 
 func init() {
@@ -91,14 +88,6 @@ func (e *etcdRegistry) Register(s *registry.Service) error {
 }
 
 func (e *etcdRegistry) GetService(name string) ([]*registry.Service, error) {
-	e.RLock()
-	service, ok := e.services[name]
-	e.RUnlock()
-
-	if ok {
-		return service, nil
-	}
-
 	rsp, err := e.client.Get(context.Background(), servicePath(name), &etcd.GetOptions{})
 	if err != nil && !strings.HasPrefix(err.Error(), "100: Key not found") {
 		return nil, err
@@ -136,18 +125,7 @@ func (e *etcdRegistry) GetService(name string) ([]*registry.Service, error) {
 }
 
 func (e *etcdRegistry) ListServices() ([]*registry.Service, error) {
-	e.RLock()
-	serviceMap := e.services
-	e.RUnlock()
-
 	var services []*registry.Service
-
-	if len(serviceMap) > 0 {
-		for _, service := range serviceMap {
-			services = append(services, service...)
-		}
-		return services, nil
-	}
 
 	rsp, err := e.client.Get(context.Background(), prefix, &etcd.GetOptions{Recursive: true, Sort: true})
 	if err != nil && !strings.HasPrefix(err.Error(), "100: Key not found") {
@@ -167,7 +145,6 @@ func (e *etcdRegistry) ListServices() ([]*registry.Service, error) {
 }
 
 func (e *etcdRegistry) Watch() (registry.Watcher, error) {
-	// todo: fix watcher
 	return newEtcdWatcher(e)
 }
 
@@ -190,8 +167,7 @@ func NewRegistry(addrs []string, opt ...registry.Option) registry.Registry {
 	})
 
 	e := &etcdRegistry{
-		client:   etcd.NewKeysAPI(c),
-		services: make(map[string][]*registry.Service),
+		client: etcd.NewKeysAPI(c),
 	}
 
 	return e
