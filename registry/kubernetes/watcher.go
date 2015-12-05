@@ -80,12 +80,14 @@ func (k *watcher) Stop() {
 func newWatcher(kr *kregistry) (registry.Watcher, error) {
 	svi := kr.client.Services(api.NamespaceAll)
 
-	services, err := svi.List(labels.Everything(), fields.Everything())
+	lb := uv.LabelSelector{labels.Everything()}
+	fd := uv.FieldSelector{fields.Everything()}
+	services, err := svi.List(uv.ListOptions{LabelSelector: lb, FieldSelector: fd})
 	if err != nil {
 		return nil, err
 	}
 
-	watch, err := svi.Watch(labels.Everything(), fields.Everything(), uv.ListOptions{ResourceVersion: services.ResourceVersion})
+	watch, err := svi.Watch(uv.ListOptions{LabelSelector: lb, FieldSelector: fd, ResourceVersion: services.ResourceVersion})
 	if err != nil {
 		return nil, err
 	}

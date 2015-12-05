@@ -5,7 +5,6 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/micro/go-micro/cmd"
