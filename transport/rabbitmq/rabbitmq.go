@@ -67,7 +67,7 @@ func (r *rmqtportClient) Send(m *transport.Message) error {
 		Headers:       headers,
 	}
 
-	if err := r.rt.conn.Publish("micro", r.addr, message); err != nil {
+	if err := r.rt.conn.Publish(DefaultExchange, r.addr, message); err != nil {
 		return err
 	}
 
