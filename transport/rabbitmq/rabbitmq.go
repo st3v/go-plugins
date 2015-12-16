@@ -230,16 +230,19 @@ func (r *rmqtport) Dial(addr string, opts ...transport.DialOption) (transport.Cl
 }
 
 func (r *rmqtport) Listen(addr string) (transport.Listener, error) {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
+	if len(addr) == 0 || addr == ":0" {
+		id, err := uuid.NewV4()
+		if err != nil {
+			return nil, err
+		}
+		addr = id.String()
 	}
 
 	conn := newRabbitMQConn("", r.addrs)
 	<-conn.Init()
 
 	return &rmqtportListener{
-		addr: id.String(),
+		addr: addr,
 		conn: conn,
 	}, nil
 }
