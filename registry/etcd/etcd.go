@@ -18,6 +18,7 @@ var (
 
 type etcdRegistry struct {
 	client etcd.KeysAPI
+	options registry.Options
 }
 
 func init() {
@@ -50,14 +51,17 @@ func (e *etcdRegistry) Deregister(s *registry.Service) error {
 		return errors.New("Require at least one node")
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
+	defer cancel()
+
 	for _, node := range s.Nodes {
-		_, err := e.client.Delete(context.Background(), nodePath(s.Name, node.Id), &etcd.DeleteOptions{Recursive: false})
+		_, err := e.client.Delete(ctx, nodePath(s.Name, node.Id), &etcd.DeleteOptions{Recursive: false})
 		if err != nil {
 			return err
 		}
 	}
 
-	e.client.Delete(context.Background(), servicePath(s.Name), &etcd.DeleteOptions{Dir: true})
+	e.client.Delete(ctx, servicePath(s.Name), &etcd.DeleteOptions{Dir: true})
 	return nil
 }
 
@@ -73,11 +77,17 @@ func (e *etcdRegistry) Register(s *registry.Service) error {
 		Endpoints: s.Endpoints,
 	}
 
-	e.client.Set(context.Background(), servicePath(s.Name), "", &etcd.SetOptions{Dir: true})
+	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
+	defer cancel()
+
+	_, err := e.client.Set(ctx, servicePath(s.Name), "", &etcd.SetOptions{PrevExist: etcd.PrevIgnore, Dir: true})
+	if err != nil && !strings.HasPrefix(err.Error(), "102: Not a file") {
+		return err
+	}
 
 	for _, node := range s.Nodes {
 		service.Nodes = []*registry.Node{node}
-		_, err := e.client.Set(context.Background(), nodePath(service.Name, node.Id), encode(service), &etcd.SetOptions{})
+		_, err := e.client.Set(ctx, nodePath(service.Name, node.Id), encode(service), &etcd.SetOptions{})
 		if err != nil {
 			return err
 		}
@@ -87,7 +97,10 @@ func (e *etcdRegistry) Register(s *registry.Service) error {
 }
 
 func (e *etcdRegistry) GetService(name string) ([]*registry.Service, error) {
-	rsp, err := e.client.Get(context.Background(), servicePath(name), &etcd.GetOptions{})
+	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
+	defer cancel()
+
+	rsp, err := e.client.Get(ctx, servicePath(name), &etcd.GetOptions{})
 	if err != nil && !strings.HasPrefix(err.Error(), "100: Key not found") {
 		return nil, err
 	}
@@ -126,9 +139,16 @@ func (e *etcdRegistry) GetService(name string) ([]*registry.Service, error) {
 func (e *etcdRegistry) ListServices() ([]*registry.Service, error) {
 	var services []*registry.Service
 
-	rsp, err := e.client.Get(context.Background(), prefix, &etcd.GetOptions{Recursive: true, Sort: true})
+	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
+	defer cancel()
+
+	rsp, err := e.client.Get(ctx, prefix, &etcd.GetOptions{Recursive: true, Sort: true})
 	if err != nil && !strings.HasPrefix(err.Error(), "100: Key not found") {
 		return nil, err
+	}
+
+	if rsp == nil {
+		return []*registry.Service{}, nil
 	}
 
 	for _, node := range rsp.Node.Nodes {
@@ -147,7 +167,16 @@ func (e *etcdRegistry) Watch() (registry.Watcher, error) {
 	return newEtcdWatcher(e)
 }
 
-func NewRegistry(addrs []string, opt ...registry.Option) registry.Registry {
+func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
+        var opt registry.Options
+        for _, o := range opts {
+                o(&opt)
+        }
+
+	if opt.Timeout == 0 {
+		opt.Timeout = etcd.DefaultRequestTimeout
+	}
+
 	var cAddrs []string
 
 	for _, addr := range addrs {
@@ -167,6 +196,7 @@ func NewRegistry(addrs []string, opt ...registry.Option) registry.Registry {
 
 	e := &etcdRegistry{
 		client: etcd.NewKeysAPI(c),
+		options: opt,
 	}
 
 	return e
