@@ -3,7 +3,9 @@ package nats
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/apcera/nats"
@@ -25,12 +27,22 @@ type ntportClient struct {
 type ntportSocket struct {
 	conn *nats.Conn
 	m    *nats.Msg
+	r    chan *nats.Msg
+
+	once  sync.Once
+	close chan bool
+
+	sync.Mutex
+	bl []*nats.Msg
 }
 
 type ntportListener struct {
 	conn *nats.Conn
 	addr string
 	exit chan bool
+
+	sync.RWMutex
+	so map[string]*ntportSocket
 }
 
 func init() {
@@ -72,7 +84,21 @@ func (n *ntportSocket) Recv(m *transport.Message) error {
 		return errors.New("message passed in is nil")
 	}
 
-	if err := json.Unmarshal(n.m.Data, &m); err != nil {
+	r, ok := <-n.r
+	if !ok {
+		return io.EOF
+	}
+	n.Lock()
+	if len(n.bl) > 0 {
+		select {
+		case n.r <- n.bl[0]:
+			n.bl = n.bl[1:]
+		default:
+		}
+	}
+	n.Unlock()
+
+	if err := json.Unmarshal(r.Data, &m); err != nil {
 		return err
 	}
 	return nil
@@ -87,6 +113,9 @@ func (n *ntportSocket) Send(m *transport.Message) error {
 }
 
 func (n *ntportSocket) Close() error {
+	n.once.Do(func() {
+		close(n.close)
+	})
 	return nil
 }
 
@@ -101,18 +130,78 @@ func (n *ntportListener) Close() error {
 }
 
 func (n *ntportListener) Accept(fn func(transport.Socket)) error {
-	s, err := n.conn.Subscribe(n.addr, func(m *nats.Msg) {
-		fn(&ntportSocket{
-			conn: n.conn,
-			m:    m,
-		})
-	})
+	s, err := n.conn.SubscribeSync(n.addr)
 	if err != nil {
 		return err
 	}
 
-	<-n.exit
-	return s.Unsubscribe()
+	var lerr error
+
+	go func() {
+		<-n.exit
+		lerr = s.Unsubscribe()
+	}()
+
+	for {
+		m, err := s.NextMsg(time.Minute)
+		if err != nil && err == nats.ErrTimeout {
+			continue
+		} else if err != nil {
+			return err
+		}
+
+		n.RLock()
+		sock, ok := n.so[m.Reply]
+		n.RUnlock()
+
+		if !ok {
+			var once sync.Once
+			sock = &ntportSocket{
+				conn:  n.conn,
+				once:  once,
+				m:     m,
+				r:     make(chan *nats.Msg, 1),
+				close: make(chan bool),
+			}
+			n.Lock()
+			n.so[m.Reply] = sock
+			n.Unlock()
+
+			go func() {
+				// TODO: think of a better error response strategy
+				defer func() {
+					if r := recover(); r != nil {
+						sock.Close()
+					}
+				}()
+				fn(sock)
+			}()
+
+			go func() {
+				<-sock.close
+				n.Lock()
+				delete(n.so, sock.m.Reply)
+				n.Unlock()
+			}()
+		}
+
+		select {
+		case <-sock.close:
+			continue
+		default:
+		}
+
+		sock.Lock()
+		sock.bl = append(sock.bl, m)
+		select {
+		case sock.r <- sock.bl[0]:
+			sock.bl = sock.bl[1:]
+		default:
+		}
+		sock.Unlock()
+
+	}
+	return lerr
 }
 
 func (n *ntport) Dial(addr string, opts ...transport.DialOption) (transport.Client, error) {
@@ -157,6 +246,7 @@ func (n *ntport) Listen(addr string) (transport.Listener, error) {
 		addr: nats.NewInbox(),
 		conn: c,
 		exit: make(chan bool, 1),
+		so:   make(map[string]*ntportSocket),
 	}, nil
 }
 
