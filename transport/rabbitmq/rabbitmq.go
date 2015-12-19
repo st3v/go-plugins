@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -36,13 +37,21 @@ type rmqtportClient struct {
 }
 
 type rmqtportSocket struct {
-	conn *rabbitMQConn
-	d    *amqp.Delivery
+	conn  *rabbitMQConn
+	d     *amqp.Delivery
+	close chan bool
+	once  sync.Once
+	sync.Mutex
+	r  chan *amqp.Delivery
+	bl []*amqp.Delivery
 }
 
 type rmqtportListener struct {
 	conn *rabbitMQConn
 	addr string
+
+	sync.RWMutex
+	so map[string]*rmqtportSocket
 }
 
 func init() {
@@ -103,12 +112,27 @@ func (r *rmqtportSocket) Recv(m *transport.Message) error {
 		return errors.New("message passed in is nil")
 	}
 
-	mr := &transport.Message{
-		Header: make(map[string]string),
-		Body:   r.d.Body,
+	d, ok := <-r.r
+	if !ok {
+		return io.EOF
 	}
 
-	for k, v := range r.d.Headers {
+	r.Lock()
+	if len(r.bl) > 0 {
+		select {
+		case r.r <- r.bl[0]:
+			r.bl = r.bl[1:]
+		default:
+		}
+	}
+	r.Unlock()
+
+	mr := &transport.Message{
+		Header: make(map[string]string),
+		Body:   d.Body,
+	}
+
+	for k, v := range d.Headers {
 		mr.Header[k] = fmt.Sprintf("%v", v)
 	}
 
@@ -127,11 +151,13 @@ func (r *rmqtportSocket) Send(m *transport.Message) error {
 	for k, v := range m.Header {
 		msg.Headers[k] = v
 	}
-
 	return r.conn.Publish("", r.d.ReplyTo, msg)
 }
 
 func (r *rmqtportSocket) Close() error {
+	r.once.Do(func() {
+		close(r.close)
+	})
 	return nil
 }
 
@@ -150,15 +176,47 @@ func (r *rmqtportListener) Accept(fn func(transport.Socket)) error {
 		return err
 	}
 
-	handler := func(d amqp.Delivery) {
-		fn(&rmqtportSocket{
-			d:    &d,
-			conn: r.conn,
-		})
-	}
-
 	for d := range deliveries {
-		go handler(d)
+		r.RLock()
+		sock, ok := r.so[d.CorrelationId]
+		r.RUnlock()
+		if !ok {
+			var once sync.Once
+			sock = &rmqtportSocket{
+				d:     &d,
+				r:     make(chan *amqp.Delivery, 1),
+				conn:  r.conn,
+				once:  once,
+				close: make(chan bool, 1),
+			}
+			r.Lock()
+			r.so[sock.d.CorrelationId] = sock
+			r.Unlock()
+
+			go func() {
+				<-sock.close
+				r.Lock()
+				delete(r.so, sock.d.CorrelationId)
+				r.Unlock()
+			}()
+
+			go fn(sock)
+		}
+
+		select {
+		case <-sock.close:
+			continue
+		default:
+		}
+
+		sock.Lock()
+		sock.bl = append(sock.bl, &d)
+		select {
+		case sock.r <- sock.bl[0]:
+			sock.bl = sock.bl[1:]
+		default:
+		}
+		sock.Unlock()
 	}
 
 	return nil
@@ -244,6 +302,7 @@ func (r *rmqtport) Listen(addr string) (transport.Listener, error) {
 	return &rmqtportListener{
 		addr: addr,
 		conn: conn,
+		so:   make(map[string]*rmqtportSocket),
 	}, nil
 }
 
