@@ -30,6 +30,10 @@ func (r *mercurySelector) Close() error {
 	return nil
 }
 
+func (r *mercurySelector) String() string {
+	return "mercury"
+}
+
 func NewSelector(opts ...selector.Option) selector.Selector {
 	return &mercurySelector{}
 }

@@ -306,6 +306,10 @@ func (r *rmqtport) Listen(addr string) (transport.Listener, error) {
 	}, nil
 }
 
+func (r *rmqtport) String() string {
+	return "rabbitmq"
+}
+
 func NewTransport(addrs []string, opt ...transport.Option) transport.Transport {
 	return &rmqtport{
 		conn:     newRabbitMQConn("", addrs),

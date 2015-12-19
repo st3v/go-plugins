@@ -361,6 +361,10 @@ func (m *memoryRegistry) Watch() (registry.Watcher, error) {
 	return newMemoryWatcher(n, e)
 }
 
+func (m *memoryRegistry) String() string {
+	return "memory"
+}
+
 func NewRegistry(addrs []string, opt ...registry.Option) registry.Registry {
 	cAddrs := []string{}
 	hostname, _ := os.Hostname()

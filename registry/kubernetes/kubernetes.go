@@ -84,6 +84,10 @@ func (c *kregistry) Watch() (registry.Watcher, error) {
 	return newWatcher(c)
 }
 
+func (c *kregistry) String() string {
+	return "kubernetes"
+}
+
 func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
 	host := "http://" + os.Getenv("KUBERNETES_RO_SERVICE_HOST") + ":" + os.Getenv("KUBERNETES_RO_SERVICE_PORT")
 	if len(addrs) > 0 {

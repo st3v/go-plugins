@@ -17,7 +17,7 @@ var (
 )
 
 type etcdRegistry struct {
-	client etcd.KeysAPI
+	client  etcd.KeysAPI
 	options registry.Options
 }
 
@@ -167,11 +167,15 @@ func (e *etcdRegistry) Watch() (registry.Watcher, error) {
 	return newEtcdWatcher(e)
 }
 
+func (e *etcdRegistry) String() string {
+	return "etcd"
+}
+
 func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
-        var opt registry.Options
-        for _, o := range opts {
-                o(&opt)
-        }
+	var opt registry.Options
+	for _, o := range opts {
+		o(&opt)
+	}
 
 	if opt.Timeout == 0 {
 		opt.Timeout = etcd.DefaultRequestTimeout
@@ -195,7 +199,7 @@ func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
 	})
 
 	e := &etcdRegistry{
-		client: etcd.NewKeysAPI(c),
+		client:  etcd.NewKeysAPI(c),
 		options: opt,
 	}
 

@@ -250,6 +250,10 @@ func (n *ntport) Listen(addr string) (transport.Listener, error) {
 	}, nil
 }
 
+func (n *ntport) String() string {
+	return "nats"
+}
+
 func NewTransport(addrs []string, opt ...transport.Option) transport.Transport {
 	return &ntport{
 		addrs: addrs,

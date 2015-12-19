@@ -67,6 +67,10 @@ func (r *rbroker) Subscribe(topic string, handler broker.Handler) (broker.Subscr
 	return &subscriber{ch: ch, topic: topic}, nil
 }
 
+func (r *rbroker) String() string {
+	return "rabbitmq"
+}
+
 func (r *rbroker) Address() string {
 	if len(r.addrs) > 0 {
 		return r.addrs[0]
