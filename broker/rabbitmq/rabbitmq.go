@@ -12,12 +12,34 @@ type rbroker struct {
 }
 
 type subscriber struct {
+	opts  broker.SubscribeOptions
 	topic string
 	ch    *rabbitMQChannel
 }
 
+type publication struct {
+	m *broker.Message
+	t string
+}
+
 func init() {
 	cmd.Brokers["rabbitmq"] = NewBroker
+}
+
+func (p *publication) Ack() error {
+	return nil
+}
+
+func (p *publication) Topic() string {
+	return p.t
+}
+
+func (p *publication) Message() *broker.Message {
+	return p.m
+}
+
+func (s *subscriber) Config() broker.SubscribeOptions {
+	return s.opts
 }
 
 func (s *subscriber) Topic() string {
@@ -28,7 +50,7 @@ func (s *subscriber) Unsubscribe() error {
 	return s.ch.Close()
 }
 
-func (r *rbroker) Publish(topic string, msg *broker.Message) error {
+func (r *rbroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	m := amqp.Publishing{
 		Body:    msg.Body,
 		Headers: amqp.Table{},
@@ -41,7 +63,15 @@ func (r *rbroker) Publish(topic string, msg *broker.Message) error {
 	return r.conn.Publish("", topic, m)
 }
 
-func (r *rbroker) Subscribe(topic string, handler broker.Handler) (broker.Subscriber, error) {
+func (r *rbroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	opt := broker.SubscribeOptions{
+		AutoAck: true,
+	}
+
+	for _, o := range opts {
+		o(&opt)
+	}
+
 	ch, sub, err := r.conn.Consume(topic)
 	if err != nil {
 		return nil, err
@@ -52,10 +82,11 @@ func (r *rbroker) Subscribe(topic string, handler broker.Handler) (broker.Subscr
 		for k, v := range msg.Headers {
 			header[k], _ = v.(string)
 		}
-		handler(&broker.Message{
+		m := &broker.Message{
 			Header: header,
 			Body:   msg.Body,
-		})
+		}
+		handler(&publication{m: m, t: topic})
 	}
 
 	go func() {
@@ -64,7 +95,7 @@ func (r *rbroker) Subscribe(topic string, handler broker.Handler) (broker.Subscr
 		}
 	}()
 
-	return &subscriber{ch: ch, topic: topic}, nil
+	return &subscriber{ch: ch, topic: topic, opts: opt}, nil
 }
 
 func (r *rbroker) String() string {
@@ -78,7 +109,7 @@ func (r *rbroker) Address() string {
 	return ""
 }
 
-func (r *rbroker) Init() error {
+func (r *rbroker) Init(opts ...broker.Option) error {
 	return nil
 }
 
