@@ -28,7 +28,7 @@ func init() {
 }
 
 func (p *publication) Ack() error {
-	return d.Ack(false)
+	return p.d.Ack(false)
 }
 
 func (p *publication) Topic() string {
