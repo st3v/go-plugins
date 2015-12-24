@@ -157,6 +157,21 @@
 			"Rev": "646ae4a518c1c3be0739df898118d9bccf993858"
 		},
 		{
+			"ImportPath": "github.com/youtube/vitess/go/bson",
+			"Comment": "v2.0.0-alpha5-546-g325ddd1",
+			"Rev": "325ddd19684af76d8df597c769ee0ef0ccddea06"
+		},
+		{
+			"ImportPath": "github.com/youtube/vitess/go/bytes2",
+			"Comment": "v2.0.0-alpha5-546-g325ddd1",
+			"Rev": "325ddd19684af76d8df597c769ee0ef0ccddea06"
+		},
+		{
+			"ImportPath": "github.com/youtube/vitess/go/hack",
+			"Comment": "v2.0.0-alpha5-546-g325ddd1",
+			"Rev": "325ddd19684af76d8df597c769ee0ef0ccddea06"
+		},
+		{
 			"ImportPath": "github.com/youtube/vitess/go/trace",
 			"Comment": "v2.0.0-alpha5-546-g325ddd1",
 			"Rev": "325ddd19684af76d8df597c769ee0ef0ccddea06"
