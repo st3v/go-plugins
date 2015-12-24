@@ -7,7 +7,7 @@ import (
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
 
-	api "k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/api"
 	k8s "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
@@ -31,10 +31,9 @@ func (c *kregistry) Register(s *registry.Service) error {
 }
 
 func (c *kregistry) GetService(name string) ([]*registry.Service, error) {
-	selector := labels.SelectorFromSet(labels.Set{"name": name})
-	lb := api.LabelSelector{selector}
-	fd := api.FieldSelector{fields.Everything()}
-	services, err := c.client.Services(c.namespace).List(api.ListOptions{LabelSelector: lb, FieldSelector: fd})
+	se := labels.SelectorFromSet(labels.Set{"name": name})
+	fd := fields.Everything()
+	services, err := c.client.Services(c.namespace).List(api.ListOptions{LabelSelector: se, FieldSelector: fd})
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +58,8 @@ func (c *kregistry) GetService(name string) ([]*registry.Service, error) {
 
 func (c *kregistry) ListServices() ([]*registry.Service, error) {
 	var services []*registry.Service
-	lb := api.LabelSelector{labels.Everything()}
-	fd := api.FieldSelector{fields.Everything()}
+	lb := labels.Everything()
+	fd := fields.Everything()
 
 	rsp, err := c.client.Services(c.namespace).List(api.ListOptions{LabelSelector: lb, FieldSelector: fd})
 	if err != nil {

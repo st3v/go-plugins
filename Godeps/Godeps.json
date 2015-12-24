@@ -1,0 +1,16 @@
+{
+	"ImportPath": "github.com/micro/go-plugins",
+	"GoVersion": "go1.5.1",
+	"Deps": [
+                {
+                        "ImportPath": "github.com/docker/docker/pkg/parsers",
+                        "Comment": "v1.4.1-4045-g2b27fe1",
+                        "Rev": "2b27fe17a1b3fb8472fde96d768fa70996adf201"
+                },
+                {
+                        "ImportPath": "github.com/docker/libcontainer",
+                        "Comment": "v2.2.1",
+                        "Rev": "5dc7ba0f24332273461e45bc49edcb4d5aa6c44c"
+                }
+	]
+}
