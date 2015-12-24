@@ -6,7 +6,6 @@ import (
 
 	"github.com/micro/go-micro/registry"
 	"k8s.io/kubernetes/pkg/api"
-	uv "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/watch"
@@ -80,14 +79,14 @@ func (k *watcher) Stop() {
 func newWatcher(kr *kregistry) (registry.Watcher, error) {
 	svi := kr.client.Services(api.NamespaceAll)
 
-	lb := uv.LabelSelector{labels.Everything()}
-	fd := uv.FieldSelector{fields.Everything()}
-	services, err := svi.List(uv.ListOptions{LabelSelector: lb, FieldSelector: fd})
+	lb := labels.Everything()
+	fd := fields.Everything()
+	services, err := svi.List(api.ListOptions{LabelSelector: lb, FieldSelector: fd})
 	if err != nil {
 		return nil, err
 	}
 
-	watch, err := svi.Watch(uv.ListOptions{LabelSelector: lb, FieldSelector: fd, ResourceVersion: services.ResourceVersion})
+	watch, err := svi.Watch(api.ListOptions{LabelSelector: lb, FieldSelector: fd, ResourceVersion: services.ResourceVersion})
 	if err != nil {
 		return nil, err
 	}
