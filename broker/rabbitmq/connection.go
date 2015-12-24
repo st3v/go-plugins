@@ -118,7 +118,7 @@ func (r *rabbitMQConn) tryToConnect() error {
 	return nil
 }
 
-func (r *rabbitMQConn) Consume(queue string) (*rabbitMQChannel, <-chan amqp.Delivery, error) {
+func (r *rabbitMQConn) Consume(queue, key string) (*rabbitMQChannel, <-chan amqp.Delivery, error) {
 	consumerChannel, err := newRabbitChannel(r.Connection)
 	if err != nil {
 		return nil, nil, err
@@ -134,7 +134,7 @@ func (r *rabbitMQConn) Consume(queue string) (*rabbitMQChannel, <-chan amqp.Deli
 		return nil, nil, err
 	}
 
-	err = consumerChannel.BindQueue(queue, r.exchange)
+	err = consumerChannel.BindQueue(queue, key, r.exchange)
 	if err != nil {
 		return nil, nil, err
 	}

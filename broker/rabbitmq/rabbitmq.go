@@ -60,7 +60,7 @@ func (r *rbroker) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 		m.Headers[k] = v
 	}
 
-	return r.conn.Publish("", topic, m)
+	return r.conn.Publish(r.conn.exchange, topic, m)
 }
 
 func (r *rbroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
@@ -72,7 +72,7 @@ func (r *rbroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 		o(&opt)
 	}
 
-	ch, sub, err := r.conn.Consume(topic)
+	ch, sub, err := r.conn.Consume(opt.Queue, topic)
 	if err != nil {
 		return nil, err
 	}
