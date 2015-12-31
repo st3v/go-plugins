@@ -9,6 +9,7 @@ import (
 type rbroker struct {
 	conn  *rabbitMQConn
 	addrs []string
+	opts  broker.Options
 }
 
 type subscriber struct {
@@ -39,7 +40,7 @@ func (p *publication) Message() *broker.Message {
 	return p.m
 }
 
-func (s *subscriber) Config() broker.SubscribeOptions {
+func (s *subscriber) Options() broker.SubscribeOptions {
 	return s.opts
 }
 
@@ -97,6 +98,10 @@ func (r *rbroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 	}()
 
 	return &subscriber{ch: ch, topic: topic, opts: opt}, nil
+}
+
+func (r *rbroker) Options() broker.Options {
+	return r.opts
 }
 
 func (r *rbroker) String() string {

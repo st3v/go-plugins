@@ -21,7 +21,8 @@ import (
 )
 
 type pubsubBroker struct {
-	ctx context.Context
+	ctx  context.Context
+	opts broker.Options
 }
 
 // A pubsub subscriber that manages handling of messages
@@ -92,7 +93,7 @@ func (s *subscriber) run(hdlr broker.Handler) {
 	}
 }
 
-func (s *subscriber) Config() broker.SubscribeOptions {
+func (s *subscriber) Options() broker.SubscribeOptions {
 	return s.opts
 }
 
@@ -139,6 +140,10 @@ func (b *pubsubBroker) Init(opts ...broker.Option) error {
 
 	b.ctx = cloud.NewContext(ProjectID, conf.Client(oauth2.NoContext))
 	return nil
+}
+
+func (b *pubsubBroker) Options() broker.Options {
+	return b.opts
 }
 
 func (b *pubsubBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
