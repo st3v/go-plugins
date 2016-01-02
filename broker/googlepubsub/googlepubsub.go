@@ -51,7 +51,7 @@ var (
 )
 
 func init() {
-	cmd.Brokers["googlepubsub"] = NewBroker
+	cmd.DefaultBrokers["googlepubsub"] = NewBroker
 }
 
 func (s *subscriber) run(hdlr broker.Handler) {

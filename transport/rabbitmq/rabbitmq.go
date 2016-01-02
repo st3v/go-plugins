@@ -55,7 +55,7 @@ type rmqtportListener struct {
 }
 
 func init() {
-	cmd.Transports["rabbitmq"] = NewTransport
+	cmd.DefaultTransports["rabbitmq"] = NewTransport
 }
 
 func (r *rmqtportClient) Send(m *transport.Message) error {

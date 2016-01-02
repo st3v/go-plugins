@@ -46,7 +46,7 @@ type ntportListener struct {
 }
 
 func init() {
-	cmd.Transports["nats"] = NewTransport
+	cmd.DefaultTransports["nats"] = NewTransport
 }
 
 func (n *ntportClient) Send(m *transport.Message) error {

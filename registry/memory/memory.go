@@ -49,7 +49,7 @@ type update struct {
 }
 
 func init() {
-	cmd.Registries["memory"] = NewRegistry
+	cmd.DefaultRegistries["memory"] = NewRegistry
 }
 
 func addNodes(old, neu []*registry.Node) []*registry.Node {

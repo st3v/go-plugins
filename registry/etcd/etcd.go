@@ -22,7 +22,7 @@ type etcdRegistry struct {
 }
 
 func init() {
-	cmd.Registries["etcd"] = NewRegistry
+	cmd.DefaultRegistries["etcd"] = NewRegistry
 }
 
 func encode(s *registry.Service) string {

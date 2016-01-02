@@ -25,7 +25,7 @@ type publication struct {
 }
 
 func init() {
-	cmd.Brokers["rabbitmq"] = NewBroker
+	cmd.DefaultBrokers["rabbitmq"] = NewBroker
 }
 
 func (p *publication) Ack() error {
