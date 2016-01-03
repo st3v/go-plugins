@@ -205,13 +205,26 @@ func (n *ntportListener) Accept(fn func(transport.Socket)) error {
 }
 
 func (n *ntport) Dial(addr string, opts ...transport.DialOption) (transport.Client, error) {
+	dopts := transport.DialOptions{
+		Timeout: transport.DefaultDialTimeout,
+	}
+
+	for _, o := range opts {
+		o(&dopts)
+	}
+
 	cAddr := nats.DefaultURL
 
 	if len(n.addrs) > 0 && strings.HasPrefix(n.addrs[0], "nats://") {
 		cAddr = n.addrs[0]
 	}
 
-	c, err := nats.Connect(cAddr)
+	nopts := nats.Options{
+		Url:     cAddr,
+		Timeout: dopts.Timeout,
+	}
+
+	c, err := nopts.Connect()
 	if err != nil {
 		return nil, err
 	}
