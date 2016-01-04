@@ -7,6 +7,14 @@ import (
 
 type mercurySelector struct{}
 
+func (r *mercurySelector) Init(opts ...selector.Option) error {
+	return nil
+}
+
+func (r *mercurySelector) Options() selector.Options {
+	return selector.Options{}
+}
+
 func (r *mercurySelector) Select(service string, opts ...selector.SelectOption) (selector.Next, error) {
 	node := &registry.Node{
 		Id:      service,
