@@ -1,6 +1,7 @@
 package nats
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"strings"
 	"sync"
@@ -32,7 +33,7 @@ var (
 	DefaultTimeout = time.Millisecond * 100
 )
 
-func newConn(addrs []string, secure bool) (*nats.Conn, error) {
+func newConn(addrs []string, secure bool, config *tls.Config) (*nats.Conn, error) {
 	var cAddrs []string
 	for _, addr := range addrs {
 		if len(addr) == 0 {
@@ -50,6 +51,7 @@ func newConn(addrs []string, secure bool) (*nats.Conn, error) {
 	opts := nats.DefaultOptions
 	opts.Servers = cAddrs
 	opts.Secure = secure
+	opts.TLSConfig = config
 
 	c, err := opts.Connect()
 	if err != nil {
@@ -62,7 +64,7 @@ func (n *natsRegistry) getConn() (*nats.Conn, error) {
 	n.Lock()
 	defer n.Unlock()
 	if n.conn == nil {
-		c, err := newConn(n.addrs, n.opts.Secure)
+		c, err := newConn(n.addrs, n.opts.Secure, n.opts.TLSConfig)
 		if err != nil {
 			return nil, err
 		}

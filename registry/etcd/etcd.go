@@ -191,6 +191,13 @@ func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
 	}
 
 	if opt.Secure {
+		tlsConfig := opt.TLSConfig
+		if tlsConfig == nil {
+			tlsConfig = &tls.Config{
+				InsecureSkipVerify: true,
+			}
+		}
+
 		// for InsecureSkipVerify
 		t := &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -199,10 +206,7 @@ func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
 				KeepAlive: 30 * time.Second,
 			}).Dial,
 			TLSHandshakeTimeout: 10 * time.Second,
-
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
+			TLSClientConfig:     tlsConfig,
 		}
 
 		runtime.SetFinalizer(&t, func(tr **http.Transport) {

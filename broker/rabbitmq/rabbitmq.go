@@ -116,11 +116,14 @@ func (r *rbroker) Address() string {
 }
 
 func (r *rbroker) Init(opts ...broker.Option) error {
+	for _, o := range opts {
+		o(&r.opts)
+	}
 	return nil
 }
 
 func (r *rbroker) Connect() error {
-	<-r.conn.Init()
+	<-r.conn.Init(r.opts.Secure, r.opts.TLSConfig)
 	return nil
 }
 
@@ -129,9 +132,15 @@ func (r *rbroker) Disconnect() error {
 	return nil
 }
 
-func NewBroker(addrs []string, opt ...broker.Option) broker.Broker {
+func NewBroker(addrs []string, opts ...broker.Option) broker.Broker {
+	var options broker.Options
+	for _, o := range opts {
+		o(&options)
+	}
+
 	return &rbroker{
 		conn:  newRabbitMQConn("", addrs),
 		addrs: addrs,
+		opts:  options,
 	}
 }
