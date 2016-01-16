@@ -32,7 +32,7 @@ var (
 	DefaultTimeout = time.Millisecond * 100
 )
 
-func newConn(addrs []string) (*nats.Conn, error) {
+func newConn(addrs []string, secure bool) (*nats.Conn, error) {
 	var cAddrs []string
 	for _, addr := range addrs {
 		if len(addr) == 0 {
@@ -49,6 +49,8 @@ func newConn(addrs []string) (*nats.Conn, error) {
 
 	opts := nats.DefaultOptions
 	opts.Servers = cAddrs
+	opts.Secure = secure
+
 	c, err := opts.Connect()
 	if err != nil {
 		return nil, err
@@ -60,7 +62,7 @@ func (n *natsRegistry) getConn() (*nats.Conn, error) {
 	n.Lock()
 	defer n.Unlock()
 	if n.conn == nil {
-		c, err := newConn(n.addrs)
+		c, err := newConn(n.addrs, n.opts.Secure)
 		if err != nil {
 			return nil, err
 		}

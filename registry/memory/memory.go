@@ -48,6 +48,11 @@ type update struct {
 	sync    chan *registry.Service
 }
 
+var (
+	// You should change this if using secure
+	DefaultKey = []byte("micro_memory_reg")
+)
+
 func init() {
 	cmd.DefaultRegistries["memory"] = NewRegistry
 }
@@ -365,7 +370,13 @@ func (m *memoryRegistry) String() string {
 	return "memory"
 }
 
-func NewRegistry(addrs []string, opt ...registry.Option) registry.Registry {
+func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
+	var options registry.Options
+
+	for _, o := range opts {
+		o(&options)
+	}
+
 	cAddrs := []string{}
 	hostname, _ := os.Hostname()
 	updates := make(chan *update, 100)
@@ -398,6 +409,14 @@ func NewRegistry(addrs []string, opt ...registry.Option) registry.Registry {
 	c.Delegate = &delegate{
 		updates:    updates,
 		broadcasts: broadcasts,
+	}
+
+	if options.Secure {
+		k, ok := options.Context.Value(contextSecretKey).([]byte)
+		if !ok {
+			k = DefaultKey
+		}
+		c.SecretKey = k
 	}
 
 	m, err := memberlist.Create(c)

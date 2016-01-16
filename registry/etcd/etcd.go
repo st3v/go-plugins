@@ -1,10 +1,15 @@
 package etcd
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"net"
+	"net/http"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/micro/go-micro/cmd"
@@ -172,6 +177,10 @@ func (e *etcdRegistry) String() string {
 }
 
 func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
+	config := etcd.Config{
+		Endpoints: []string{"http://127.0.0.1:2379"},
+	}
+
 	var opt registry.Options
 	for _, o := range opts {
 		o(&opt)
@@ -181,22 +190,57 @@ func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
 		opt.Timeout = etcd.DefaultRequestTimeout
 	}
 
+	if opt.Secure {
+		// for InsecureSkipVerify
+		t := &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout: 10 * time.Second,
+
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+
+		runtime.SetFinalizer(&t, func(tr **http.Transport) {
+			(*tr).CloseIdleConnections()
+		})
+
+		config.Transport = t
+
+		// default secure address
+		config.Endpoints = []string{"https://127.0.0.1:2379"}
+	}
+
 	var cAddrs []string
 
 	for _, addr := range addrs {
 		if len(addr) == 0 {
 			continue
 		}
+
+		if opt.Secure {
+			// replace http:// with https:// if its there
+			addr = strings.Replace(addr, "http://", "https://", 1)
+
+			// has the prefix? no... ok add it
+			if !strings.HasPrefix(addr, "https://") {
+				addr = "https://" + addr
+			}
+		}
+
 		cAddrs = append(cAddrs, addr)
 	}
 
-	if len(cAddrs) == 0 {
-		cAddrs = []string{"http://127.0.0.1:2379"}
+	// if we got addrs then we'll update
+	if len(cAddrs) > 0 {
+		config.Endpoints = cAddrs
 	}
 
-	c, _ := etcd.New(etcd.Config{
-		Endpoints: cAddrs,
-	})
+	c, _ := etcd.New(config)
 
 	e := &etcdRegistry{
 		client:  etcd.NewKeysAPI(c),
