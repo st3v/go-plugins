@@ -104,7 +104,7 @@ func (r *rabbitMQConn) Close() {
 func (r *rabbitMQConn) tryToConnect(secure bool, config *tls.Config) error {
 	var err error
 
-	if secure {
+	if secure || config != nil {
 		if config == nil {
 			config = &tls.Config{
 				InsecureSkipVerify: true,

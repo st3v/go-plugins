@@ -53,6 +53,11 @@ func newConn(addrs []string, secure bool, config *tls.Config) (*nats.Conn, error
 	opts.Secure = secure
 	opts.TLSConfig = config
 
+	// secure might not be set
+	if config != nil {
+		opts.Secure = true
+	}
+
 	c, err := opts.Connect()
 	if err != nil {
 		return nil, err

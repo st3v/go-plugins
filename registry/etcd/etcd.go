@@ -190,7 +190,7 @@ func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
 		opt.Timeout = etcd.DefaultRequestTimeout
 	}
 
-	if opt.Secure {
+	if opt.Secure || opt.TLSConfig != nil {
 		tlsConfig := opt.TLSConfig
 		if tlsConfig == nil {
 			tlsConfig = &tls.Config{
