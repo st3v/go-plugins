@@ -15,6 +15,7 @@ import (
 
 type ntport struct {
 	addrs []string
+	opts  transport.Options
 }
 
 type ntportClient struct {
@@ -204,27 +205,27 @@ func (n *ntportListener) Accept(fn func(transport.Socket)) error {
 	return lerr
 }
 
-func (n *ntport) Dial(addr string, opts ...transport.DialOption) (transport.Client, error) {
+func (n *ntport) Dial(addr string, dialOpts ...transport.DialOption) (transport.Client, error) {
 	dopts := transport.DialOptions{
 		Timeout: transport.DefaultDialTimeout,
 	}
 
-	for _, o := range opts {
+	for _, o := range dialOpts {
 		o(&dopts)
 	}
 
-	cAddr := nats.DefaultURL
+	opts := nats.DefaultOptions
+	opts.Servers = n.addrs
+	opts.Secure = n.opts.Secure
+	opts.TLSConfig = n.opts.TLSConfig
+	opts.Timeout = dopts.Timeout
 
-	if len(n.addrs) > 0 && strings.HasPrefix(n.addrs[0], "nats://") {
-		cAddr = n.addrs[0]
+	// secure might not be set
+	if n.opts.TLSConfig != nil {
+		opts.Secure = true
 	}
 
-	nopts := nats.Options{
-		Url:     cAddr,
-		Timeout: dopts.Timeout,
-	}
-
-	c, err := nopts.Connect()
+	c, err := opts.Connect()
 	if err != nil {
 		return nil, err
 	}
@@ -243,14 +244,18 @@ func (n *ntport) Dial(addr string, opts ...transport.DialOption) (transport.Clie
 	}, nil
 }
 
-func (n *ntport) Listen(addr string) (transport.Listener, error) {
-	cAddr := nats.DefaultURL
+func (n *ntport) Listen(addr string, listenOpts ...transport.ListenOption) (transport.Listener, error) {
+	opts := nats.DefaultOptions
+	opts.Servers = n.addrs
+	opts.Secure = n.opts.Secure
+	opts.TLSConfig = n.opts.TLSConfig
 
-	if len(n.addrs) > 0 && strings.HasPrefix(n.addrs[0], "nats://") {
-		cAddr = n.addrs[0]
+	// secure might not be set
+	if n.opts.TLSConfig != nil {
+		opts.Secure = true
 	}
 
-	c, err := nats.Connect(cAddr)
+	c, err := opts.Connect()
 	if err != nil {
 		return nil, err
 	}
@@ -267,8 +272,30 @@ func (n *ntport) String() string {
 	return "nats"
 }
 
-func NewTransport(addrs []string, opt ...transport.Option) transport.Transport {
+func NewTransport(addrs []string, opts ...transport.Option) transport.Transport {
+	var options transport.Options
+	for _, o := range opts {
+		o(&options)
+	}
+
+	var cAddrs []string
+
+	for _, addr := range addrs {
+		if len(addr) == 0 {
+			continue
+		}
+		if !strings.HasPrefix(addr, "nats://") {
+			addr = "nats://" + addr
+		}
+		cAddrs = append(cAddrs, addr)
+	}
+
+	if len(cAddrs) == 0 {
+		cAddrs = []string{nats.DefaultURL}
+	}
+
 	return &ntport{
-		addrs: addrs,
+		addrs: cAddrs,
+		opts:  options,
 	}
 }

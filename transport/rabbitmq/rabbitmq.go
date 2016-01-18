@@ -21,6 +21,7 @@ const (
 type rmqtport struct {
 	conn  *rabbitMQConn
 	addrs []string
+	opts  transport.Options
 
 	once    sync.Once
 	replyTo string
@@ -248,7 +249,7 @@ func (r *rmqtport) popReq(id string) {
 }
 
 func (r *rmqtport) init() {
-	<-r.conn.Init()
+	<-r.conn.Init(r.opts.Secure, r.opts.TLSConfig)
 	if err := r.conn.Channel.DeclareReplyQueue(r.replyTo); err != nil {
 		return
 	}
@@ -287,7 +288,7 @@ func (r *rmqtport) Dial(addr string, opts ...transport.DialOption) (transport.Cl
 	}, nil
 }
 
-func (r *rmqtport) Listen(addr string) (transport.Listener, error) {
+func (r *rmqtport) Listen(addr string, opts ...transport.ListenOption) (transport.Listener, error) {
 	if len(addr) == 0 || addr == ":0" {
 		id, err := uuid.NewV4()
 		if err != nil {
@@ -297,7 +298,7 @@ func (r *rmqtport) Listen(addr string) (transport.Listener, error) {
 	}
 
 	conn := newRabbitMQConn("", r.addrs)
-	<-conn.Init()
+	<-conn.Init(r.opts.Secure, r.opts.TLSConfig)
 
 	return &rmqtportListener{
 		addr: addr,
@@ -310,8 +311,14 @@ func (r *rmqtport) String() string {
 	return "rabbitmq"
 }
 
-func NewTransport(addrs []string, opt ...transport.Option) transport.Transport {
+func NewTransport(addrs []string, opts ...transport.Option) transport.Transport {
+	var options transport.Options
+	for _, o := range opts {
+		o(&options)
+	}
+
 	return &rmqtport{
+		opts:     options,
 		conn:     newRabbitMQConn("", addrs),
 		addrs:    addrs,
 		replyTo:  directReplyQueue,

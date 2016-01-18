@@ -5,6 +5,7 @@ package rabbitmq
 //
 
 import (
+	"crypto/tls"
 	"strings"
 	"sync"
 	"time"
@@ -52,14 +53,14 @@ func newRabbitMQConn(exchange string, urls []string) *rabbitMQConn {
 	}
 }
 
-func (r *rabbitMQConn) Init() chan bool {
-	go r.Connect(r.notify)
+func (r *rabbitMQConn) Init(secure bool, config *tls.Config) chan bool {
+	go r.Connect(secure, config, r.notify)
 	return r.notify
 }
 
-func (r *rabbitMQConn) Connect(connected chan bool) {
+func (r *rabbitMQConn) Connect(secure bool, config *tls.Config, connected chan bool) {
 	for {
-		if err := r.tryToConnect(); err != nil {
+		if err := r.tryToConnect(secure, config); err != nil {
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -99,9 +100,22 @@ func (r *rabbitMQConn) Close() {
 	r.closed = true
 }
 
-func (r *rabbitMQConn) tryToConnect() error {
+func (r *rabbitMQConn) tryToConnect(secure bool, config *tls.Config) error {
 	var err error
-	r.Connection, err = amqp.Dial(r.url)
+
+	if secure || config != nil {
+		if config == nil {
+			config = &tls.Config{
+				InsecureSkipVerify: true,
+			}
+		}
+
+		url := strings.Replace(r.url, "amqp://", "amqps://", 1)
+		r.Connection, err = amqp.DialTLS(url, config)
+	} else {
+		r.Connection, err = amqp.Dial(r.url)
+	}
+
 	if err != nil {
 		return err
 	}
