@@ -254,7 +254,7 @@ loop:
 	return services, nil
 }
 
-func (n *natsRegistry) Register(s *registry.Service) error {
+func (n *natsRegistry) Register(s *registry.Service, opts ...registry.RegisterOption) error {
 	if err := n.register(s); err != nil {
 		return err
 	}

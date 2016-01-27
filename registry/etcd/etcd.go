@@ -70,9 +70,14 @@ func (e *etcdRegistry) Deregister(s *registry.Service) error {
 	return nil
 }
 
-func (e *etcdRegistry) Register(s *registry.Service) error {
+func (e *etcdRegistry) Register(s *registry.Service, opts ...registry.RegisterOption) error {
 	if len(s.Nodes) == 0 {
 		return errors.New("Require at least one node")
+	}
+
+	var options registry.RegisterOptions
+	for _, o := range opts {
+		o(&options)
 	}
 
 	service := &registry.Service{
@@ -85,14 +90,14 @@ func (e *etcdRegistry) Register(s *registry.Service) error {
 	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
 	defer cancel()
 
-	_, err := e.client.Set(ctx, servicePath(s.Name), "", &etcd.SetOptions{PrevExist: etcd.PrevIgnore, Dir: true})
+	_, err := e.client.Set(ctx, servicePath(s.Name), "", &etcd.SetOptions{PrevExist: etcd.PrevIgnore, Dir: true, TTL: options.TTL})
 	if err != nil && !strings.HasPrefix(err.Error(), "102: Not a file") {
 		return err
 	}
 
 	for _, node := range s.Nodes {
 		service.Nodes = []*registry.Node{node}
-		_, err := e.client.Set(ctx, nodePath(service.Name, node.Id), encode(service), &etcd.SetOptions{})
+		_, err := e.client.Set(ctx, nodePath(service.Name, node.Id), encode(service), &etcd.SetOptions{TTL: options.TTL})
 		if err != nil {
 			return err
 		}

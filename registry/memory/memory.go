@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	log "github.com/golang/glog"
 	"github.com/hashicorp/memberlist"
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
+	"github.com/mitchellh/hashstructure"
 	"github.com/pborman/uuid"
 )
 
@@ -43,14 +45,17 @@ type memoryRegistry struct {
 }
 
 type update struct {
-	Action  action
-	Service *registry.Service
-	sync    chan *registry.Service
+	Action    action
+	Service   *registry.Service
+	Timestamp int64
+	Expires   int64
+	sync      chan *registry.Service
 }
 
 var (
 	// You should change this if using secure
 	DefaultKey = []byte("micro_memory_reg")
+	ExpiryTick = time.Second * 10
 )
 
 func init() {
@@ -251,6 +256,33 @@ func (m *memoryRegistry) subscribe() (chan *registry.Result, chan bool) {
 }
 
 func (m *memoryRegistry) run() {
+	var mtx sync.Mutex
+	updates := map[uint64]*update{}
+
+	// expiry loop
+	go func() {
+		t := time.NewTicker(ExpiryTick)
+		defer t.Stop()
+
+		for _ = range t.C {
+			now := time.Now().Unix()
+
+			mtx.Lock()
+			for k, v := range updates {
+				// check if expiry time has passed
+				if d := (v.Timestamp + v.Expires) - now; d < 0 {
+					// delete from records
+					delete(updates, k)
+					// set to delete
+					v.Action = delAction
+					// fire a new update
+					m.updates <- v
+				}
+			}
+			mtx.Unlock()
+		}
+	}()
+
 	for u := range m.updates {
 		switch u.Action {
 		case addAction:
@@ -263,6 +295,16 @@ func (m *memoryRegistry) run() {
 			}
 			m.Unlock()
 			go m.publish("add", []*registry.Service{u.Service})
+
+			// we need to expire the node at some point in the future
+			if u.Expires > 0 {
+				// create a hash of this service
+				if hash, err := hashstructure.Hash(u.Service, nil); err == nil {
+					mtx.Lock()
+					updates[hash] = u
+					mtx.Unlock()
+				}
+			}
 		case delAction:
 			m.Lock()
 			if service, ok := m.services[u.Service.Name]; ok {
@@ -274,6 +316,13 @@ func (m *memoryRegistry) run() {
 			}
 			m.Unlock()
 			go m.publish("delete", []*registry.Service{u.Service})
+
+			// delete from expiry checks
+			if hash, err := hashstructure.Hash(u.Service, nil); err == nil {
+				mtx.Lock()
+				delete(updates, hash)
+				mtx.Unlock()
+			}
 		case syncAction:
 			if u.sync == nil {
 				continue
@@ -291,7 +340,7 @@ func (m *memoryRegistry) run() {
 	}
 }
 
-func (m *memoryRegistry) Register(s *registry.Service) error {
+func (m *memoryRegistry) Register(s *registry.Service, opts ...registry.RegisterOption) error {
 	m.Lock()
 	if service, ok := m.services[s.Name]; !ok {
 		m.services[s.Name] = []*registry.Service{s}
@@ -300,10 +349,17 @@ func (m *memoryRegistry) Register(s *registry.Service) error {
 	}
 	m.Unlock()
 
+	var options registry.RegisterOptions
+	for _, o := range opts {
+		o(&options)
+	}
+
 	b, _ := json.Marshal([]*update{
 		&update{
-			Action:  addAction,
-			Service: s,
+			Action:    addAction,
+			Service:   s,
+			Timestamp: time.Now().Unix(),
+			Expires:   int64(options.TTL.Seconds()),
 		},
 	})
 
