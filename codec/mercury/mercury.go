@@ -34,11 +34,11 @@ func (c *mercuryCodec) Write(m *codec.Message, b interface{}) error {
 			return err
 		}
 		c.rwc.Write(data)
-		m.Headers["Content-Encoding"] = "request"
-		m.Headers["Service"] = m.Target
-		m.Headers["Endpoint"] = m.Method
+		m.Header["Content-Encoding"] = "request"
+		m.Header["Service"] = m.Target
+		m.Header["Endpoint"] = m.Method
 	case codec.Response:
-		m.Headers["Content-Encoding"] = "response"
+		m.Header["Content-Encoding"] = "response"
 		data, err := proto.Marshal(b.(proto.Message))
 		if err != nil {
 			return err
@@ -62,7 +62,7 @@ func (c *mercuryCodec) ReadHeader(m *codec.Message, mt codec.MessageType) error 
 
 	switch mt {
 	case codec.Request:
-		m.Method = m.Headers["Endpoint"]
+		m.Method = m.Header["Endpoint"]
 		io.Copy(c.buf, c.rwc)
 	case codec.Response:
 		io.Copy(c.buf, c.rwc)
