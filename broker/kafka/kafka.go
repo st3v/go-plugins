@@ -2,7 +2,9 @@ package kafka
 
 import (
 	"encoding/json"
-	"github.com/Shopify/sarama"
+	"log"
+
+	sarama "gopkg.in/Shopify/sarama.v1"
 	sc "github.com/bsm/sarama-cluster"
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/cmd"
@@ -26,6 +28,8 @@ type subscriber struct {
 
 type publication struct {
 	t string
+	c *sc.Consumer
+	km *sarama.ConsumerMessage
 	m *broker.Message
 }
 
@@ -42,6 +46,7 @@ func (p *publication) Message() *broker.Message {
 }
 
 func (p *publication) Ack() error {
+	p.c.MarkOffset(p.km, "")
 	return nil
 }
 
@@ -148,13 +153,21 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 	go func() {
 		for {
 			select {
+			case err := <-c.Errors():
+				log.Println("consumer error:", err)
 			case sm := <-c.Messages():
 				var m *broker.Message
 				if err := json.Unmarshal(sm.Value, &m); err != nil {
 					continue
 				}
-
-				handler(&publication{m: m, t: sm.Topic})
+				if err := handler(&publication{
+					m: m,
+					t: sm.Topic,
+					c: c,
+					km: sm,
+				}); err == nil && opt.AutoAck {
+					c.MarkOffset(sm, "")
+				}
 			}
 		}
 	}()
