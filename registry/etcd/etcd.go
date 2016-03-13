@@ -114,7 +114,7 @@ func (e *etcdRegistry) GetService(name string) ([]*registry.Service, error) {
 	if err != nil && !strings.HasPrefix(err.Error(), "100: Key not found") {
 		return nil, err
 	}
-	
+
 	if rsp == nil {
 		return nil, registry.ErrNotFound
 	}
