@@ -2,8 +2,6 @@ package kafka
 
 import (
 	"encoding/json"
-	"fmt"
-
 	"github.com/Shopify/sarama"
 	sc "github.com/bsm/sarama-cluster"
 	"github.com/micro/go-micro/broker"
