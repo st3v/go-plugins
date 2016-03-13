@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"log"
 
-	sarama "gopkg.in/Shopify/sarama.v1"
-	sc "github.com/bsm/sarama-cluster"
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/cmd"
+	"github.com/pborman/uuid"
+	sarama "gopkg.in/Shopify/sarama.v1"
+	sc "gopkg.in/bsm/sarama-cluster.v2"
 )
 
 type kBroker struct {
@@ -27,10 +28,10 @@ type subscriber struct {
 }
 
 type publication struct {
-	t string
-	c *sc.Consumer
+	t  string
+	c  *sc.Consumer
 	km *sarama.ConsumerMessage
-	m *broker.Message
+	m  *broker.Message
 }
 
 func init() {
@@ -88,7 +89,11 @@ func (k *kBroker) Connect() error {
 
 	k.p = p
 
-	cs, err := sc.NewClient(k.addrs, sc.NewConfig())
+	config := sc.NewConfig()
+	// TODO: make configurable offset as SubscriberOption
+	config.Config.Consumer.Offsets.Initial = sarama.OffsetNewest
+
+	cs, err := sc.NewClient(k.addrs, config)
 	if err != nil {
 		return err
 	}
@@ -139,6 +144,7 @@ func (k *kBroker) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	opt := broker.SubscribeOptions{
 		AutoAck: true,
+		Queue:   uuid.NewUUID().String(),
 	}
 
 	for _, o := range opts {
@@ -161,9 +167,9 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 					continue
 				}
 				if err := handler(&publication{
-					m: m,
-					t: sm.Topic,
-					c: c,
+					m:  m,
+					t:  sm.Topic,
+					c:  c,
 					km: sm,
 				}); err == nil && opt.AutoAck {
 					c.MarkOffset(sm, "")
