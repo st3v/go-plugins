@@ -42,6 +42,6 @@ func TestBreaker(t *testing.T) {
 	}
 
 	if err.Error() != "circuit breaker is open" {
-		t.Error("Expecting tripped breaker, got %v", err)
+		t.Errorf("Expecting tripped breaker, got %v", err)
 	}
 }
