@@ -3,6 +3,7 @@ package hystrix
 import (
 	"testing"
 
+	"github.com/afex/hystrix-go/hystrix"
 	"github.com/micro/go-micro/client"
 	"github.com/micro/go-micro/registry/mock"
 	"github.com/micro/go-micro/selector"
@@ -29,7 +30,7 @@ func TestBreaker(t *testing.T) {
 	var rsp map[string]interface{}
 
 	// Force to point of trip
-	for i := 0; i < 25; i++ {
+	for i := 0; i < (hystrix.DefaultVolumeThreshold * 2); i++ {
 		c.Call(context.TODO(), req, rsp)
 	}
 
@@ -39,6 +40,6 @@ func TestBreaker(t *testing.T) {
 	}
 
 	if err.Error() != "hystrix: circuit open" {
-		t.Error("Expecting tripped breaker, got %v", err)
+		t.Errorf("Expecting tripped breaker, got %v", err)
 	}
 }
