@@ -16,7 +16,7 @@ Codec		|	RPC Encoding; BSON, Mercury
 Registry	|	Service Discovery; Etcd, Gossip, NATS
 Selector	|	Node Selection; Label, Mercury
 Transport	|	Synchronous Request/Response; NATS, RabbitMQ
-Wrappers	|	Client/Server middleware; Circuit Breakers
+Wrappers	|	Client/Server middleware; Circuit Breakers, Rate Limit
 
 ## Usage
 
