@@ -3,6 +3,7 @@ package ratelimit
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/juju/ratelimit"
 	"github.com/micro/go-micro/client"
@@ -115,5 +116,8 @@ func TestRateServerLimit(t *testing.T) {
 
 		s.Deregister()
 		s.Stop()
+
+		// artificial test delay
+		time.Sleep(time.Millisecond * 20)
 	}
 }
