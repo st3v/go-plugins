@@ -16,12 +16,12 @@ type clientWrapper struct {
 	client.Client
 }
 
-func limit(b *ratelimit.Bucket, wait bool) func() error {
+func limit(b *ratelimit.Bucket, wait bool, errId string) func() error {
 	return func() error {
 		if wait {
 			time.Sleep(b.Take(1))
 		} else if b.TakeAvailable(1) == 0 {
-			return errors.New("go.micro.client", "too many request", 429)
+			return errors.New(errId, "too many request", 429)
 		}
 		return nil
 	}
@@ -36,7 +36,7 @@ func (c *clientWrapper) Call(ctx context.Context, req client.Request, rsp interf
 
 // NewClientWrapper takes a rate limiter and wait flag and returns a client Wrapper.
 func NewClientWrapper(b *ratelimit.Bucket, wait bool) client.Wrapper {
-	fn := limit(b, wait)
+	fn := limit(b, wait, "go.micro.client")
 
 	return func(c client.Client) client.Client {
 		return &clientWrapper{fn, c}
@@ -45,7 +45,7 @@ func NewClientWrapper(b *ratelimit.Bucket, wait bool) client.Wrapper {
 
 // NewHandlerWrapper takes a rate limiter and wait flag and returns a client Wrapper.
 func NewHandlerWrapper(b *ratelimit.Bucket, wait bool) server.HandlerWrapper {
-	fn := limit(b, wait)
+	fn := limit(b, wait, "go.micro.server")
 
 	return func(h server.HandlerFunc) server.HandlerFunc {
 		return func(ctx context.Context, req server.Request, rsp interface{}) error {
