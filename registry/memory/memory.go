@@ -3,11 +3,11 @@ package memory
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 	"time"
 
-	log "github.com/golang/glog"
 	"github.com/hashicorp/memberlist"
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
@@ -487,6 +487,6 @@ func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
 		}
 	}
 
-	log.Infof("Local memberlist node %s:%d\n", m.LocalNode().Addr, m.LocalNode().Port)
+	log.Printf("Local memberlist node %s:%d\n", m.LocalNode().Addr, m.LocalNode().Port)
 	return mr
 }
