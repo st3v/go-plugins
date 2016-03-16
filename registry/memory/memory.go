@@ -426,9 +426,8 @@ func (m *memoryRegistry) String() string {
 	return "memory"
 }
 
-func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
+func NewRegistry(opts ...registry.Option) registry.Registry {
 	var options registry.Options
-
 	for _, o := range opts {
 		o(&options)
 	}
@@ -437,7 +436,7 @@ func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
 	hostname, _ := os.Hostname()
 	updates := make(chan *update, 100)
 
-	for _, addr := range addrs {
+	for _, addr := range options.Addrs {
 		if len(addr) > 0 {
 			cAddrs = append(cAddrs, addr)
 		}

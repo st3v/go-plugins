@@ -311,7 +311,7 @@ func (r *rmqtport) String() string {
 	return "rabbitmq"
 }
 
-func NewTransport(addrs []string, opts ...transport.Option) transport.Transport {
+func NewTransport(opts ...transport.Option) transport.Transport {
 	var options transport.Options
 	for _, o := range opts {
 		o(&options)
@@ -319,8 +319,8 @@ func NewTransport(addrs []string, opts ...transport.Option) transport.Transport 
 
 	return &rmqtport{
 		opts:     options,
-		conn:     newRabbitMQConn("", addrs),
-		addrs:    addrs,
+		conn:     newRabbitMQConn("", options.Addrs),
+		addrs:    options.Addrs,
 		replyTo:  directReplyQueue,
 		inflight: make(map[string]chan amqp.Delivery),
 	}

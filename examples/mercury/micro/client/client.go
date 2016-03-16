@@ -18,7 +18,7 @@ func main() {
 
 	c := client.NewClient(
 		client.Selector(mercury.NewSelector()),
-		client.Transport(rabbitmq.NewTransport([]string{})),
+		client.Transport(rabbitmq.NewTransport()),
 		client.Codec("application/x-protobuf", mcodec.NewCodec),
 		client.ContentType("application/x-protobuf"),
 	)

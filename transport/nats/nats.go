@@ -272,7 +272,7 @@ func (n *ntport) String() string {
 	return "nats"
 }
 
-func NewTransport(addrs []string, opts ...transport.Option) transport.Transport {
+func NewTransport(opts ...transport.Option) transport.Transport {
 	var options transport.Options
 	for _, o := range opts {
 		o(&options)
@@ -280,7 +280,7 @@ func NewTransport(addrs []string, opts ...transport.Option) transport.Transport 
 
 	var cAddrs []string
 
-	for _, addr := range addrs {
+	for _, addr := range options.Addrs {
 		if len(addr) == 0 {
 			continue
 		}

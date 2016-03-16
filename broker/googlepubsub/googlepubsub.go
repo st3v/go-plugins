@@ -208,7 +208,7 @@ func (b *pubsubBroker) String() string {
 	return "googlepubsub"
 }
 
-func NewBroker(addrs []string, opt ...broker.Option) broker.Broker {
+func NewBroker(opts ...broker.Option) broker.Broker {
 	conf, _ := google.JWTConfigFromJSON(Key, pubsub.ScopeCloudPlatform, pubsub.ScopePubSub)
 	ctx := cloud.NewContext(ProjectID, conf.Client(oauth2.NoContext))
 

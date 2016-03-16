@@ -26,7 +26,7 @@ func main() {
 		server.Name("foo"),
 		server.Id("foo"),
 		server.Address("foo"),
-		server.Transport(rabbitmq.NewTransport([]string{})),
+		server.Transport(rabbitmq.NewTransport()),
 		server.Codec("application/x-protobuf", mcodec.NewCodec),
 	)
 	s.Handle(

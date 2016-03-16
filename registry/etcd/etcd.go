@@ -185,22 +185,22 @@ func (e *etcdRegistry) String() string {
 	return "etcd"
 }
 
-func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
+func NewRegistry(opts ...registry.Option) registry.Registry {
 	config := etcd.Config{
 		Endpoints: []string{"http://127.0.0.1:2379"},
 	}
 
-	var opt registry.Options
+	var options registry.Options
 	for _, o := range opts {
-		o(&opt)
+		o(&options)
 	}
 
-	if opt.Timeout == 0 {
-		opt.Timeout = etcd.DefaultRequestTimeout
+	if options.Timeout == 0 {
+		options.Timeout = etcd.DefaultRequestTimeout
 	}
 
-	if opt.Secure || opt.TLSConfig != nil {
-		tlsConfig := opt.TLSConfig
+	if options.Secure || options.TLSConfig != nil {
+		tlsConfig := options.TLSConfig
 		if tlsConfig == nil {
 			tlsConfig = &tls.Config{
 				InsecureSkipVerify: true,
@@ -230,12 +230,12 @@ func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
 
 	var cAddrs []string
 
-	for _, addr := range addrs {
+	for _, addr := range options.Addrs {
 		if len(addr) == 0 {
 			continue
 		}
 
-		if opt.Secure {
+		if options.Secure {
 			// replace http:// with https:// if its there
 			addr = strings.Replace(addr, "http://", "https://", 1)
 
@@ -257,7 +257,7 @@ func NewRegistry(addrs []string, opts ...registry.Option) registry.Registry {
 
 	e := &etcdRegistry{
 		client:  etcd.NewKeysAPI(c),
-		options: opt,
+		options: options,
 	}
 
 	return e

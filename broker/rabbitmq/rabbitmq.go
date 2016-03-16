@@ -132,15 +132,15 @@ func (r *rbroker) Disconnect() error {
 	return nil
 }
 
-func NewBroker(addrs []string, opts ...broker.Option) broker.Broker {
+func NewBroker(opts ...broker.Option) broker.Broker {
 	var options broker.Options
 	for _, o := range opts {
 		o(&options)
 	}
 
 	return &rbroker{
-		conn:  newRabbitMQConn("", addrs),
-		addrs: addrs,
+		conn:  newRabbitMQConn("", options.Addrs),
+		addrs: options.Addrs,
 		opts:  options,
 	}
 }

@@ -323,15 +323,15 @@ func (n *natsRegistry) String() string {
 	return "nats"
 }
 
-func NewRegistry(addrs []string, opt ...registry.Option) registry.Registry {
+func NewRegistry(opts ...registry.Option) registry.Registry {
 	options := registry.Options{
 		Timeout: DefaultTimeout,
 	}
-	for _, o := range opt {
+	for _, o := range opts {
 		o(&options)
 	}
 	return &natsRegistry{
-		addrs:     addrs,
+		addrs:     options.Addrs,
 		opts:      options,
 		services:  make(map[string][]*registry.Service),
 		listeners: make(map[string]chan bool),
