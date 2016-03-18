@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/micro/go-micro/codec"
-	"github.com/youtube/vitess/go/bson"
+	"github.com/micro/go-bson"
 )
 
 type bsonCodec struct {
