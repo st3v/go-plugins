@@ -78,41 +78,40 @@ func TestLabelSelector(t *testing.T) {
 	counts := map[string]int{}
 
 	r := mock.NewRegistry()
-	r.Services["bar"] = []*registry.Service{
-		&registry.Service{
-			Name:    "bar",
-			Version: "latest",
-			Nodes: []*registry.Node{
-				&registry.Node{
-					Id: "1",
-					Metadata: map[string]string{
-						"key1": "val1",
-					},
+	r.Register(&registry.Service{
+		Name:    "bar",
+		Version: "latest",
+		Nodes: []*registry.Node{
+			&registry.Node{
+				Id: "1",
+				Metadata: map[string]string{
+					"key1": "val1",
 				},
-				&registry.Node{
-					Id: "2",
-					Metadata: map[string]string{
-						"key2": "val2",
-					},
+			},
+			&registry.Node{
+				Id: "2",
+				Metadata: map[string]string{
+					"key2": "val2",
 				},
 			},
 		},
-		&registry.Service{
-			Name:    "bar",
-			Version: "1.0.0",
-			Nodes: []*registry.Node{
-				&registry.Node{
-					Id: "3",
-					Metadata: map[string]string{
-						"key1": "val1",
-					},
-				},
-				&registry.Node{
-					Id: "4",
+	})
+
+	r.Register(&registry.Service{
+		Name:    "bar",
+		Version: "1.0.0",
+		Nodes: []*registry.Node{
+			&registry.Node{
+				Id: "3",
+				Metadata: map[string]string{
+					"key1": "val1",
 				},
 			},
+			&registry.Node{
+				Id: "4",
+			},
 		},
-	}
+	})
 
 	ls := NewSelector(
 		selector.Registry(r),
