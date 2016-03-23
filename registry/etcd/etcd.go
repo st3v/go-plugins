@@ -90,7 +90,7 @@ func (e *etcdRegistry) Register(s *registry.Service, opts ...registry.RegisterOp
 	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
 	defer cancel()
 
-	_, err := e.client.Set(ctx, servicePath(s.Name), "", &etcd.SetOptions{PrevExist: etcd.PrevIgnore, Dir: true, TTL: options.TTL})
+	_, err := e.client.Set(ctx, servicePath(s.Name), "", &etcd.SetOptions{PrevExist: etcd.PrevIgnore, Dir: true})
 	if err != nil && !strings.HasPrefix(err.Error(), "102: Not a file") {
 		return err
 	}
