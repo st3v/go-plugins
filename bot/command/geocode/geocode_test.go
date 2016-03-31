@@ -21,7 +21,7 @@ func TestGeocode(t *testing.T) {
 		}
 
 		if string(rsp) != d.response {
-			t.Fatal("Expected %s got %s", d.response, string(rsp))
+			t.Fatalf("Expected %s got %s", d.response, string(rsp))
 
 		}
 	}
