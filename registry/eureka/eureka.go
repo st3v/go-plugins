@@ -5,6 +5,8 @@ package eureka
 */
 
 import (
+	"time"
+
 	"github.com/hudl/fargo"
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
@@ -40,6 +42,7 @@ func newRegistry(opts ...registry.Option) registry.Registry {
 	}
 
 	conn := fargo.NewConn(cAddrs...)
+	conn.PollInterval = time.Second * 5
 
 	return &eurekaRegistry{
 		conn: conn,
@@ -87,8 +90,7 @@ func (e *eurekaRegistry) ListServices() ([]*registry.Service, error) {
 }
 
 func (e *eurekaRegistry) Watch() (registry.Watcher, error) {
-	// TODO: implement Watcher
-	return nil, nil
+	return newWatcher(e.conn), nil
 }
 
 func (e *eurekaRegistry) String() string {
