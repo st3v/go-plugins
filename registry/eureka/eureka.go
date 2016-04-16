@@ -8,6 +8,7 @@ import (
 	"github.com/hudl/fargo"
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
+	"github.com/op/go-logging"
 )
 
 type eurekaRegistry struct {
@@ -17,6 +18,7 @@ type eurekaRegistry struct {
 
 func init() {
 	cmd.DefaultRegistries["eureka"] = NewRegistry
+	logging.SetLevel(logging.ERROR, "fargo")
 }
 
 func newRegistry(opts ...registry.Option) registry.Registry {

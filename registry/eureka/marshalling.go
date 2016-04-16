@@ -3,6 +3,7 @@ package eureka
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/hudl/fargo"
 	"github.com/micro/go-micro/registry"
@@ -41,7 +42,7 @@ func appToService(app *fargo.Application) []*registry.Service {
 		if !ok {
 			// create new if doesn't exist
 			service = &registry.Service{
-				Name:      app.Name,
+				Name:      strings.ToLower(app.Name),
 				Version:   version,
 				Endpoints: endpoints,
 			}
@@ -77,14 +78,16 @@ func serviceToInstance(service *registry.Service) (*fargo.Instance, error) {
 	node := service.Nodes[0]
 
 	instance := &fargo.Instance{
-		App:    service.Name,
-		IPAddr: node.Address,
-		Port:   node.Port,
-		Status: fargo.UP,
+		App:              service.Name,
+		IPAddr:           node.Address,
+		VipAddress:       node.Address,
+		SecureVipAddress: node.Address,
+		Port:             node.Port,
+		Status:           fargo.UP,
 		UniqueID: func(i fargo.Instance) string {
 			return node.Id
 		},
-		DataCenterInfo: fargo.DataCenterInfo{Name: "micro"},
+		DataCenterInfo: fargo.DataCenterInfo{Name: fargo.MyOwn},
 	}
 
 	// set version
