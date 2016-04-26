@@ -8,7 +8,7 @@ import (
 )
 
 /*
-	JSON-RPC is one of the default codecs in go-micro.
+	PROTO-RPC is one of the default codecs in go-micro.
 	Content type used is application/protobuf or application/proto-rpc
 	Implementation here https://godoc.org/github.com/micro/go-micro/codec/protorpc
 	We have a link here for completeness
