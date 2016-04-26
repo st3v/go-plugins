@@ -1,5 +1,9 @@
 package kafka
 
+/*
+	Kafka broker is an implementation of the go-micro/broker using sarama cluster.
+*/
+
 import (
 	"encoding/json"
 	"log"

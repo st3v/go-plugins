@@ -1,8 +1,8 @@
+package googlepubsub
+
 /*
 	Google cloud pubsub broker
 */
-
-package googlepubsub
 
 import (
 	"sync"
