@@ -25,7 +25,7 @@ Wrappers	|	Client/Server middleware; Circuit Breakers, Rate Limit
 
 Feature		|	Description		|	Author
 ----------	|	------------		|	--------
-[Registry/Kubernetes](https://godoc.org/github.com/micro/go-plugins/registry/kubernetes)	|	Service discovery via the Kubernetes API	|	@nickjackson
+[Registry/Kubernetes](https://godoc.org/github.com/micro/go-plugins/registry/kubernetes)	|	Service discovery via the Kubernetes API	|	[@nickjackson](https://github.com/nickjackson)
 
 ## Usage
 
