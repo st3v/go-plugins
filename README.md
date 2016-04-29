@@ -21,6 +21,12 @@ Selector	|	Node Selection; Label, Mercury
 Transport	|	Synchronous Request/Response; NATS, RabbitMQ
 Wrappers	|	Client/Server middleware; Circuit Breakers, Rate Limit
 
+## Community Contributions
+
+Feature		|	Description		|	Author
+----------	|	------------		|	--------
+[Registry/Kubernetes](https://godoc.org/github.com/micro/go-plugins/registry/kubernetes)	|	Service discovery via the Kubernetes API	|	@nickjacksonnickjackson
+
 ## Usage
 
 Plugins can be added to go-micro in the following ways. By doing so they'll be available to set via command line args or environment variables.
