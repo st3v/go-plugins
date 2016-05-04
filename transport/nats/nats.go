@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apcera/nats"
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/transport"
+	"github.com/nats-io/nats"
 )
 
 type ntport struct {
