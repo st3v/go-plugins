@@ -58,12 +58,12 @@ type update struct {
 
 var (
 	// You should change this if using secure
-	DefaultKey = []byte("micro_memory_reg")
+	DefaultKey = []byte("gossipKey")
 	ExpiryTick = time.Second * 10
 )
 
 func init() {
-	cmd.DefaultRegistries["memory"] = NewRegistry
+	cmd.DefaultRegistries["gossip"] = NewRegistry
 }
 
 func addNodes(old, neu []*registry.Node) []*registry.Node {
