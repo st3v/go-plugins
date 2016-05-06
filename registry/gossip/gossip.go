@@ -1,4 +1,8 @@
-package memory
+package gossip
+
+/*
+	Gossip is a gossip based registry using hashicorp/memberlist
+*/
 
 import (
 	"encoding/json"
@@ -33,7 +37,7 @@ type delegate struct {
 	updates    chan *update
 }
 
-type memoryRegistry struct {
+type gossipRegistry struct {
 	broadcasts *memberlist.TransmitLimitedQueue
 	updates    chan *update
 
@@ -222,7 +226,7 @@ func (d *delegate) MergeRemoteState(buf []byte, join bool) {
 	}
 }
 
-func (m *memoryRegistry) publish(action string, services []*registry.Service) {
+func (m *gossipRegistry) publish(action string, services []*registry.Service) {
 	m.s.RLock()
 	for _, sub := range m.subs {
 		go func() {
@@ -234,7 +238,7 @@ func (m *memoryRegistry) publish(action string, services []*registry.Service) {
 	m.s.RUnlock()
 }
 
-func (m *memoryRegistry) subscribe() (chan *registry.Result, chan bool) {
+func (m *gossipRegistry) subscribe() (chan *registry.Result, chan bool) {
 	next := make(chan *registry.Result, 10)
 	exit := make(chan bool)
 
@@ -255,7 +259,7 @@ func (m *memoryRegistry) subscribe() (chan *registry.Result, chan bool) {
 	return next, exit
 }
 
-func (m *memoryRegistry) run() {
+func (m *gossipRegistry) run() {
 	var mtx sync.Mutex
 	updates := map[uint64]*update{}
 
@@ -340,7 +344,7 @@ func (m *memoryRegistry) run() {
 	}
 }
 
-func (m *memoryRegistry) Register(s *registry.Service, opts ...registry.RegisterOption) error {
+func (m *gossipRegistry) Register(s *registry.Service, opts ...registry.RegisterOption) error {
 	m.Lock()
 	if service, ok := m.services[s.Name]; !ok {
 		m.services[s.Name] = []*registry.Service{s}
@@ -371,7 +375,7 @@ func (m *memoryRegistry) Register(s *registry.Service, opts ...registry.Register
 	return nil
 }
 
-func (m *memoryRegistry) Deregister(s *registry.Service) error {
+func (m *gossipRegistry) Deregister(s *registry.Service) error {
 	m.Lock()
 	if service, ok := m.services[s.Name]; ok {
 		if services := delServices(service, []*registry.Service{s}); len(services) == 0 {
@@ -397,7 +401,7 @@ func (m *memoryRegistry) Deregister(s *registry.Service) error {
 	return nil
 }
 
-func (m *memoryRegistry) GetService(name string) ([]*registry.Service, error) {
+func (m *gossipRegistry) GetService(name string) ([]*registry.Service, error) {
 	m.RLock()
 	service, ok := m.services[name]
 	m.RUnlock()
@@ -407,7 +411,7 @@ func (m *memoryRegistry) GetService(name string) ([]*registry.Service, error) {
 	return service, nil
 }
 
-func (m *memoryRegistry) ListServices() ([]*registry.Service, error) {
+func (m *gossipRegistry) ListServices() ([]*registry.Service, error) {
 	var services []*registry.Service
 	m.RLock()
 	for _, service := range m.services {
@@ -417,12 +421,12 @@ func (m *memoryRegistry) ListServices() ([]*registry.Service, error) {
 	return services, nil
 }
 
-func (m *memoryRegistry) Watch() (registry.Watcher, error) {
+func (m *gossipRegistry) Watch() (registry.Watcher, error) {
 	n, e := m.subscribe()
-	return newMemoryWatcher(n, e)
+	return newGossipWatcher(n, e)
 }
 
-func (m *memoryRegistry) String() string {
+func (m *gossipRegistry) String() string {
 	return "memory"
 }
 
@@ -449,7 +453,7 @@ func NewRegistry(opts ...registry.Option) registry.Registry {
 		RetransmitMult: 3,
 	}
 
-	mr := &memoryRegistry{
+	mr := &gossipRegistry{
 		broadcasts: broadcasts,
 		services:   make(map[string][]*registry.Service),
 		updates:    updates,
@@ -467,7 +471,7 @@ func NewRegistry(opts ...registry.Option) registry.Registry {
 	}
 
 	if options.Secure {
-		k, ok := options.Context.Value(contextSecretKey).([]byte)
+		k, ok := options.Context.Value(contextSecretKey{}).([]byte)
 		if !ok {
 			k = DefaultKey
 		}
