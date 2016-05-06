@@ -427,7 +427,7 @@ func (m *gossipRegistry) Watch() (registry.Watcher, error) {
 }
 
 func (m *gossipRegistry) String() string {
-	return "memory"
+	return "gossip"
 }
 
 func NewRegistry(opts ...registry.Option) registry.Registry {
