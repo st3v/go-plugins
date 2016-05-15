@@ -2,6 +2,7 @@ package zookeeper
 
 import (
 	"errors"
+	"fmt"
 	"path"
 	"sync"
 
@@ -43,6 +44,7 @@ func newZookeeperWatcher(r *zookeeperRegistry) (registry.Watcher, error) {
 }
 
 func (zw *zookeeperWatcher) watchDir(key string, respChan chan watchResponse) {
+	fmt.Println("Watching dir: " + key)
 	for {
 		children, _, childEventCh, err := zw.client.ChildrenW(key)
 		if err != nil {
@@ -122,8 +124,12 @@ func (zw *zookeeperWatcher) watchKey(key string, respChan chan watchResponse) {
 
 func (zw *zookeeperWatcher) watch() {
 	//get all Services
-	serviceMap := map[string]*registry.Service{}
-	err := getServices(zw.client, serviceMap)
+	//serviceMap := map[string]*registry.Service{}
+	//err := getServices(zw.client, serviceMap)
+	//if err != nil {
+	//	zw.results <- result{nil, err}
+	//}
+	services, _, err := zw.client.Children(prefix)
 	if err != nil {
 		zw.results <- result{nil, err}
 	}
@@ -133,14 +139,15 @@ func (zw *zookeeperWatcher) watch() {
 	go zw.watchDir(prefix, respChan)
 
 	//watch every service
-	for servicePath := range serviceMap {
-		go zw.watchDir(servicePath, respChan)
-		children, _, err := zw.client.Children(servicePath)
+	for _, service := range services {
+		sPath := servicePath(service)
+		go zw.watchDir(sPath, respChan)
+		children, _, err := zw.client.Children(sPath)
 		if err != nil {
 			zw.results <- result{nil, err}
 		}
 		for _, c := range children {
-			go zw.watchKey(path.Join(servicePath, c), respChan)
+			go zw.watchKey(path.Join(sPath, c), respChan)
 		}
 	}
 
