@@ -159,6 +159,10 @@ func NewRegistry(opts ...registry.Option) registry.Registry {
 		cAddrs = append(cAddrs, addr)
 	}
 
+	if len(cAddrs) == 0 {
+		cAddrs = []string{"127.0.0.1:2181"}
+	}
+
 	c, _, _ := zk.Connect(cAddrs, time.Second*options.Timeout)
 	e := &zookeeperRegistry{
 		client:  c,
