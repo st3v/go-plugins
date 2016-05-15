@@ -32,21 +32,24 @@ func servicePath(s string) string {
 
 func createPath(path string, data []byte, client *zk.Conn) error {
 	var err error
+
+	pathExists, _, _ := client.Exists(path)
 	name := "/"
 	p := strings.Split(path, "/")
-
-	for _, v := range p[1 : len(p)-1] {
-		name += v
-		e, _, _ := client.Exists(name)
-		if !e {
-			_, err = client.Create(name, []byte{}, int32(0), zk.WorldACL(zk.PermAll))
-			if err != nil {
-				return err
+	if !pathExists {
+		for _, v := range p[1 : len(p)-1] {
+			name += v
+			e, _, _ := client.Exists(name)
+			if !e {
+				_, err = client.Create(name, []byte{}, int32(0), zk.WorldACL(zk.PermAll))
+				if err != nil {
+					return err
+				}
 			}
+			name += "/"
 		}
-		name += "/"
+		_, err = client.Create(path, data, int32(0), zk.WorldACL(zk.PermAll))
 	}
-	_, err = client.Create(path, data, int32(0), zk.WorldACL(zk.PermAll))
 	return err
 }
 
