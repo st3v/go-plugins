@@ -168,6 +168,9 @@ func NewRegistry(opts ...registry.Option) registry.Registry {
 		client:  c,
 		options: options,
 	}
+
+	createPath(prefix, []byte{}, c)
+
 	return e
 }
 
