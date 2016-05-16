@@ -28,7 +28,7 @@ func (z *zookeeperRegistry) Deregister(s *registry.Service) error {
 	}
 
 	for _, node := range s.Nodes {
-		err := z.client.Delete(nodePath(s.Name, node.Id), 0)
+		err := z.client.Delete(nodePath(s.Name, node.Id), -1)
 		if err != nil {
 			return err
 		}
