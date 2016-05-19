@@ -2,11 +2,14 @@ package zookeeper
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
 	"github.com/samuel/go-zookeeper/zk"
+
+	hash "github.com/mitchellh/hashstructure"
 )
 
 var (
@@ -16,6 +19,8 @@ var (
 type zookeeperRegistry struct {
 	client  *zk.Conn
 	options registry.Options
+	sync.Mutex
+	register map[string]uint64
 }
 
 func init() {
@@ -26,6 +31,11 @@ func (z *zookeeperRegistry) Deregister(s *registry.Service) error {
 	if len(s.Nodes) == 0 {
 		return errors.New("Require at least one node")
 	}
+
+	// delete our hash of the service
+	z.Lock()
+	delete(z.register, s.Name)
+	z.Unlock()
 
 	for _, node := range s.Nodes {
 		err := z.client.Delete(nodePath(s.Name, node.Id), -1)
@@ -45,6 +55,22 @@ func (z *zookeeperRegistry) Register(s *registry.Service, opts ...registry.Regis
 	var options registry.RegisterOptions
 	for _, o := range opts {
 		o(&options)
+	}
+
+	// create hash of service; uint64
+	h, err := hash.Hash(s, nil)
+	if err != nil {
+		return err
+	}
+
+	// get existing hash
+	z.Lock()
+	v, ok := z.register[s.Name]
+	z.Unlock()
+
+	// the service is unchanged, skip registering
+	if ok && v == h {
+		return nil
 	}
 
 	service := &registry.Service{
@@ -73,6 +99,12 @@ func (z *zookeeperRegistry) Register(s *registry.Service, opts ...registry.Regis
 			}
 		}
 	}
+
+	// save our hash of the service
+	z.Lock()
+	z.register[s.Name] = h
+	z.Unlock()
+
 	return nil
 }
 
@@ -165,8 +197,9 @@ func NewRegistry(opts ...registry.Option) registry.Registry {
 
 	c, _, _ := zk.Connect(cAddrs, time.Second*options.Timeout)
 	e := &zookeeperRegistry{
-		client:  c,
-		options: options,
+		client:   c,
+		options:  options,
+		register: make(map[string]uint64),
 	}
 
 	createPath(prefix, []byte{}, c)
