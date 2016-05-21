@@ -123,7 +123,9 @@ func (r *Request) request() (*http.Request, error) {
 	}
 
 	// append any query params
-	url += "?" + r.params.Encode()
+	if len(r.params) > 0 {
+		url += "?" + r.params.Encode()
+	}
 
 	// build request
 	req, err := http.NewRequest(r.method, url, r.body)
