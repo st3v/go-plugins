@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"log"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -20,7 +20,8 @@ import (
 )
 
 var (
-	prefix = "/micro-registry"
+	prefix      = "/micro-registry"
+	cachePrefix = "/micro-cache"
 )
 
 type etcdv3Registry struct {
@@ -72,7 +73,23 @@ func (e *etcdv3Registry) Deregister(s *registry.Service) error {
 	defer cancel()
 
 	for _, node := range s.Nodes {
-		_, err := e.client.Delete(ctx, nodePath(s.Name, node.Id))
+		// cache the value for the watcher
+		resp, err := e.client.Get(ctx, nodePath(s.Name, node.Id))
+		if err != nil {
+			return err
+		}
+		for _, ev := range resp.Kvs {
+			lrsp, err := e.client.Grant(context.TODO(), 5)
+			if err != nil {
+				return err
+			}
+			_, err = e.client.Put(ctx, path.Join(cachePrefix, string(ev.Key)), string(ev.Value), clientv3.WithLease(lrsp.ID))
+			if err != nil {
+				return err
+			}
+		}
+
+		_, err = e.client.Delete(ctx, nodePath(s.Name, node.Id))
 		if err != nil {
 			return err
 		}
@@ -125,15 +142,14 @@ func (e *etcdv3Registry) Register(s *registry.Service, opts ...registry.Register
 	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
 	defer cancel()
 
-	// minimum lease TTL is 5-second
-	resp, err := e.client.Grant(context.TODO(), int64(options.TTL.Seconds()))
+	resp, err := e.client.Grant(ctx, int64(options.TTL.Seconds()))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	for _, node := range s.Nodes {
 		service.Nodes = []*registry.Node{node}
-		_, err := e.client.Put(ctx, nodePath(service.Name, node.Id), encode(service), clientv3.WithLease(clientv3.LeaseID(resp.ID)))
+		_, err := e.client.Put(ctx, nodePath(service.Name, node.Id), encode(service), clientv3.WithLease(resp.ID))
 		if err != nil {
 			return err
 		}
@@ -191,6 +207,7 @@ func (e *etcdv3Registry) GetService(name string) ([]*registry.Service, error) {
 
 func (e *etcdv3Registry) ListServices() ([]*registry.Service, error) {
 	var services []*registry.Service
+	nameSet := make(map[string]struct{})
 
 	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
 	defer cancel()
@@ -205,9 +222,12 @@ func (e *etcdv3Registry) ListServices() ([]*registry.Service, error) {
 	}
 
 	for _, n := range rsp.Kvs {
-		service := &registry.Service{}
 		sn := decode(n.Value)
-		service.Name = sn.Name
+		nameSet[sn.Name] = struct{}{}
+	}
+	for k := range nameSet {
+		service := &registry.Service{}
+		service.Name = k
 		services = append(services, service)
 	}
 
@@ -215,7 +235,7 @@ func (e *etcdv3Registry) ListServices() ([]*registry.Service, error) {
 }
 
 func (e *etcdv3Registry) Watch() (registry.Watcher, error) {
-	return newEtcdv3Watcher(e)
+	return newEtcdv3Watcher(e, e.options.Timeout)
 }
 
 func (e *etcdv3Registry) String() string {
