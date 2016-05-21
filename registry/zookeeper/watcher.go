@@ -83,8 +83,6 @@ func (zw *zookeeperWatcher) watchDir(key string, respChan chan watchResponse) {
 
 						respChan <- watchResponse{e, srv, err}
 					}
-
-					continue
 				} else {
 					go zw.watchKey(newNode, respChan)
 					s, _, err := zw.client.Get(newNode)
