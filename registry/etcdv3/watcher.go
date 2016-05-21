@@ -3,7 +3,6 @@ package etcdv3
 import (
 	"errors"
 	"path"
-	"sync"
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
@@ -12,7 +11,6 @@ import (
 )
 
 type etcdv3Watcher struct {
-	once    sync.Once
 	stop    chan bool
 	w       clientv3.WatchChan
 	client  *clientv3.Client
@@ -20,7 +18,6 @@ type etcdv3Watcher struct {
 }
 
 func newEtcdv3Watcher(r *etcdv3Registry, timeout time.Duration) (registry.Watcher, error) {
-	var once sync.Once
 	ctx, cancel := context.WithCancel(context.Background())
 	stop := make(chan bool, 1)
 
@@ -30,7 +27,6 @@ func newEtcdv3Watcher(r *etcdv3Registry, timeout time.Duration) (registry.Watche
 	}()
 
 	return &etcdv3Watcher{
-		once:    once,
 		stop:    stop,
 		w:       r.client.Watch(ctx, prefix, clientv3.WithPrefix()),
 		client:  r.client,
@@ -45,49 +41,49 @@ func (ew *etcdv3Watcher) Next() (*registry.Result, error) {
 		}
 		for _, ev := range wresp.Events {
 			service := decode(ev.Kv.Value)
+			var action string
+
 			switch ev.Type {
-			case clientv3.EventTypePut, clientv3.EventTypeDelete:
-				var action string
-
-				if ev.Type == clientv3.EventTypePut {
-					if ev.IsCreate() {
-						action = "create"
-					} else if ev.IsModify() {
-						action = "update"
-					}
+			case clientv3.EventTypePut:
+				if ev.IsCreate() {
+					action = "create"
+				} else if ev.IsModify() {
+					action = "update"
 				}
-				if ev.Type == clientv3.EventTypeDelete {
-					action = "delete"
-					// get the cached value
+			case clientv3.EventTypeDelete:
+				action = "delete"
 
-					ctx, cancel := context.WithTimeout(context.Background(), ew.timeout)
-					defer cancel()
+				// get the cached value
+				ctx, cancel := context.WithTimeout(context.Background(), ew.timeout)
+				defer cancel()
 
-					resp, err := ew.client.Get(ctx, path.Join(cachePrefix, string(ev.Kv.Key)))
-					if err != nil {
-						return nil, err
-					}
-					for _, ev := range resp.Kvs {
-						service = decode(ev.Value)
-					}
+				resp, err := ew.client.Get(ctx, path.Join(cachePrefix, string(ev.Kv.Key)))
+				if err != nil {
+					return nil, err
 				}
 
-				if service == nil {
-					continue
+				for _, ev := range resp.Kvs {
+					service = decode(ev.Value)
 				}
 
-				return &registry.Result{
-					Action:  action,
-					Service: service,
-				}, nil
 			}
+			if service == nil {
+				continue
+			}
+			return &registry.Result{
+				Action:  action,
+				Service: service,
+			}, nil
 		}
 	}
 	return nil, errors.New("could not get next")
 }
 
 func (ew *etcdv3Watcher) Stop() {
-	ew.once.Do(func() {
-		ew.stop <- true
-	})
+	select {
+	case <-ew.stop:
+		return
+	default:
+		close(ew.stop)
+	}
 }

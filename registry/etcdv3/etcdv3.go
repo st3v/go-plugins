@@ -78,8 +78,9 @@ func (e *etcdv3Registry) Deregister(s *registry.Service) error {
 		if err != nil {
 			return err
 		}
+
 		for _, ev := range resp.Kvs {
-			lrsp, err := e.client.Grant(context.TODO(), 5)
+			lrsp, err := e.client.Grant(ctx, 5)
 			if err != nil {
 				return err
 			}
@@ -142,14 +143,21 @@ func (e *etcdv3Registry) Register(s *registry.Service, opts ...registry.Register
 	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
 	defer cancel()
 
-	resp, err := e.client.Grant(ctx, int64(options.TTL.Seconds()))
-	if err != nil {
-		return err
+	var lgr *clientv3.LeaseGrantResponse
+	if options.TTL.Seconds() > 0 {
+		lgr, err = e.client.Grant(ctx, int64(options.TTL.Seconds()))
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, node := range s.Nodes {
 		service.Nodes = []*registry.Node{node}
-		_, err := e.client.Put(ctx, nodePath(service.Name, node.Id), encode(service), clientv3.WithLease(resp.ID))
+		if lgr != nil {
+			_, err = e.client.Put(ctx, nodePath(service.Name, node.Id), encode(service), clientv3.WithLease(lgr.ID))
+		} else {
+			_, err = e.client.Put(ctx, nodePath(service.Name, node.Id), encode(service))
+		}
 		if err != nil {
 			return err
 		}
@@ -159,7 +167,9 @@ func (e *etcdv3Registry) Register(s *registry.Service, opts ...registry.Register
 	// save our hash of the service
 	e.register[s.Name] = h
 	// save our leaseID of the service
-	e.leases[s.Name] = resp.ID
+	if lgr != nil {
+		e.leases[s.Name] = lgr.ID
+	}
 	e.Unlock()
 
 	return nil
@@ -181,20 +191,21 @@ func (e *etcdv3Registry) GetService(name string) ([]*registry.Service, error) {
 	serviceMap := map[string]*registry.Service{}
 
 	for _, n := range rsp.Kvs {
-		sn := decode(n.Value)
-		s, ok := serviceMap[sn.Version]
-		if !ok {
-			s = &registry.Service{
-				Name:      sn.Name,
-				Version:   sn.Version,
-				Metadata:  sn.Metadata,
-				Endpoints: sn.Endpoints,
+		if sn := decode(n.Value); sn != nil {
+			s, ok := serviceMap[sn.Version]
+			if !ok {
+				s = &registry.Service{
+					Name:      sn.Name,
+					Version:   sn.Version,
+					Metadata:  sn.Metadata,
+					Endpoints: sn.Endpoints,
+				}
+				serviceMap[s.Version] = s
 			}
-			serviceMap[s.Version] = s
-		}
 
-		for _, node := range sn.Nodes {
-			s.Nodes = append(s.Nodes, node)
+			for _, node := range sn.Nodes {
+				s.Nodes = append(s.Nodes, node)
+			}
 		}
 	}
 
@@ -222,8 +233,9 @@ func (e *etcdv3Registry) ListServices() ([]*registry.Service, error) {
 	}
 
 	for _, n := range rsp.Kvs {
-		sn := decode(n.Value)
-		nameSet[sn.Name] = struct{}{}
+		if sn := decode(n.Value); sn != nil {
+			nameSet[sn.Name] = struct{}{}
+		}
 	}
 	for k := range nameSet {
 		service := &registry.Service{}
