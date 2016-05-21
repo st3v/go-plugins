@@ -3,7 +3,6 @@ package zookeeper
 import (
 	"errors"
 	"path"
-	"sync"
 
 	"github.com/micro/go-micro/registry"
 	"github.com/samuel/go-zookeeper/zk"
@@ -11,7 +10,6 @@ import (
 
 type zookeeperWatcher struct {
 	client  *zk.Conn
-	once    sync.Once
 	stop    chan bool
 	results chan result
 }
@@ -28,60 +26,76 @@ type result struct {
 }
 
 func newZookeeperWatcher(r *zookeeperRegistry) (registry.Watcher, error) {
-	var once sync.Once
-	stop := make(chan bool, 1)
-
 	zw := &zookeeperWatcher{
 		client:  r.client,
-		once:    once,
-		stop:    stop,
+		stop:    make(chan bool),
 		results: make(chan result),
 	}
-	go zw.watch()
 
+	go zw.watch()
 	return zw, nil
 }
 
 func (zw *zookeeperWatcher) watchDir(key string, respChan chan watchResponse) {
 	for {
+		// get current children for a key
 		children, _, childEventCh, err := zw.client.ChildrenW(key)
 		if err != nil {
 			respChan <- watchResponse{zk.Event{}, nil, err}
 			return
 		}
+
 		select {
 		case e := <-childEventCh:
-			if e.Type == zk.EventNodeChildrenChanged {
-				newChildren, _, err := zw.client.Children(e.Path)
-				if err != nil {
-					respChan <- watchResponse{e, nil, err}
-					return
+			if e.Type != zk.EventNodeChildrenChanged {
+				continue
+			}
+
+			newChildren, _, err := zw.client.Children(e.Path)
+			if err != nil {
+				respChan <- watchResponse{e, nil, err}
+				return
+			}
+
+			// a node was added -- watch the new node
+			for _, i := range newChildren {
+				if contains(children, i) {
+					continue
 				}
 
-				if len(children) < len(newChildren) {
-					// a node was added -- watch the new node
-					for _, i := range newChildren {
-						if !contains(children, i) {
-							newNode := path.Join(e.Path, i)
-							if key == prefix {
-								// a new service was created under prefix
-								go zw.watchDir(newNode, respChan)
-								nodes, _, _ := zw.client.Children(newNode)
-								for _, node := range nodes {
-									n := path.Join(newNode, node)
-									go zw.watchKey(n, respChan)
-									s, _, err := zw.client.Get(n)
-									e.Type = zk.EventNodeCreated
-									respChan <- watchResponse{e, decode(s), err}
-								}
-							} else {
-								go zw.watchKey(newNode, respChan)
-								s, _, err := zw.client.Get(newNode)
-								e.Type = zk.EventNodeCreated
-								respChan <- watchResponse{e, decode(s), err}
-							}
+				newNode := path.Join(e.Path, i)
+
+				if key == prefix {
+					// a new service was created under prefix
+					go zw.watchDir(newNode, respChan)
+
+					nodes, _, _ := zw.client.Children(newNode)
+					for _, node := range nodes {
+						n := path.Join(newNode, node)
+						go zw.watchKey(n, respChan)
+						s, _, err := zw.client.Get(n)
+						e.Type = zk.EventNodeCreated
+
+						srv, err := decode(s)
+						if err != nil {
+							continue
 						}
+
+						respChan <- watchResponse{e, srv, err}
 					}
+
+					continue
+				} else {
+					go zw.watchKey(newNode, respChan)
+					s, _, err := zw.client.Get(newNode)
+					e.Type = zk.EventNodeCreated
+
+					srv, err := decode(s)
+					if err != nil {
+						continue
+					}
+
+					respChan <- watchResponse{e, srv, err}
 				}
 			}
 		case <-zw.stop:
@@ -107,7 +121,13 @@ func (zw *zookeeperWatcher) watchKey(key string, respChan chan watchResponse) {
 					// get the updated service
 					s, _, err = zw.client.Get(e.Path)
 				}
-				respChan <- watchResponse{e, decode(s), err}
+
+				srv, err := decode(s)
+				if err != nil {
+					continue
+				}
+
+				respChan <- watchResponse{e, srv, err}
 			}
 			if e.Type == zk.EventNodeDeleted {
 				//The Node was deleted - stop watching
@@ -172,9 +192,12 @@ func (zw *zookeeperWatcher) watch() {
 }
 
 func (zw *zookeeperWatcher) Stop() {
-	zw.once.Do(func() {
+	select {
+	case <-zw.stop:
+		return
+	default:
 		close(zw.stop)
-	})
+	}
 }
 
 func (zw *zookeeperWatcher) Next() (*registry.Result, error) {

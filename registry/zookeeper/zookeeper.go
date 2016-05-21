@@ -2,6 +2,7 @@ package zookeeper
 
 import (
 	"errors"
+	"log"
 	"sync"
 	"time"
 
@@ -82,18 +83,23 @@ func (z *zookeeperRegistry) Register(s *registry.Service, opts ...registry.Regis
 
 	for _, node := range s.Nodes {
 		service.Nodes = []*registry.Node{node}
-		e, _, err := z.client.Exists(nodePath(service.Name, node.Id))
+		exists, _, err := z.client.Exists(nodePath(service.Name, node.Id))
 		if err != nil {
 			return err
 		}
 
-		if e {
-			_, err := z.client.Set(nodePath(service.Name, node.Id), encode(service), -1)
+		srv, err := encode(service)
+		if err != nil {
+			return err
+		}
+
+		if exists {
+			_, err := z.client.Set(nodePath(service.Name, node.Id), srv, -1)
 			if err != nil {
 				return err
 			}
 		} else {
-			err := createPath(nodePath(service.Name, node.Id), encode(service), z.client)
+			err := createPath(nodePath(service.Name, node.Id), srv, z.client)
 			if err != nil {
 				return err
 			}
@@ -114,13 +120,14 @@ func (z *zookeeperRegistry) GetService(name string) ([]*registry.Service, error)
 		return nil, err
 	}
 
-	serviceMap := map[string]*registry.Service{}
+	serviceMap := make(map[string]*registry.Service)
 
 	for _, n := range l {
 		_, stat, err := z.client.Children(nodePath(name, n))
 		if err != nil {
 			return nil, err
 		}
+
 		if stat.NumChildren > 0 {
 			continue
 		}
@@ -129,7 +136,11 @@ func (z *zookeeperRegistry) GetService(name string) ([]*registry.Service, error)
 		if err != nil {
 			return nil, err
 		}
-		sn := decode(b)
+
+		sn, err := decode(b)
+		if err != nil {
+			return nil, err
+		}
 
 		s, ok := serviceMap[sn.Version]
 		if !ok {
@@ -148,20 +159,51 @@ func (z *zookeeperRegistry) GetService(name string) ([]*registry.Service, error)
 	}
 
 	var services []*registry.Service
+
 	for _, service := range serviceMap {
 		services = append(services, service)
 	}
+
 	return services, nil
 }
 
 func (z *zookeeperRegistry) ListServices() ([]*registry.Service, error) {
-	var services []*registry.Service
-	serviceMap := map[string]*registry.Service{}
-
-	err := getServices(z.client, serviceMap)
+	srv, _, err := z.client.Children(prefix)
 	if err != nil {
 		return nil, err
 	}
+
+	serviceMap := make(map[string]*registry.Service)
+
+	for _, key := range srv {
+		s := servicePath(key)
+		nodes, _, err := z.client.Children(s)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, node := range nodes {
+			_, stat, err := z.client.Children(nodePath(key, node))
+			if err != nil {
+				return nil, err
+			}
+
+			if stat.NumChildren == 0 {
+				b, _, err := z.client.Get(nodePath(key, node))
+				if err != nil {
+					return nil, err
+				}
+				i, err := decode(b)
+				if err != nil {
+					return nil, err
+				}
+				serviceMap[s] = &registry.Service{Name: i.Name}
+			}
+		}
+	}
+
+	var services []*registry.Service
+
 	for _, service := range serviceMap {
 		services = append(services, service)
 	}
@@ -171,6 +213,10 @@ func (z *zookeeperRegistry) ListServices() ([]*registry.Service, error) {
 
 func (z *zookeeperRegistry) String() string {
 	return "zookeeper"
+}
+
+func (z *zookeeperRegistry) Watch() (registry.Watcher, error) {
+	return newZookeeperWatcher(z)
 }
 
 func NewRegistry(opts ...registry.Option) registry.Registry {
@@ -195,18 +241,20 @@ func NewRegistry(opts ...registry.Option) registry.Registry {
 		cAddrs = []string{"127.0.0.1:2181"}
 	}
 
-	c, _, _ := zk.Connect(cAddrs, time.Second*options.Timeout)
-	e := &zookeeperRegistry{
+	// connect to zookeeper
+	c, _, err := zk.Connect(cAddrs, time.Second*options.Timeout)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// create our prefix path
+	if err := createPath(prefix, []byte{}, c); err != nil {
+		log.Fatal(err)
+	}
+
+	return &zookeeperRegistry{
 		client:   c,
 		options:  options,
 		register: make(map[string]uint64),
 	}
-
-	createPath(prefix, []byte{}, c)
-
-	return e
-}
-
-func (z *zookeeperRegistry) Watch() (registry.Watcher, error) {
-	return newZookeeperWatcher(z)
 }

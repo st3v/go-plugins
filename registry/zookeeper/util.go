@@ -9,15 +9,14 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 )
 
-func encode(s *registry.Service) []byte {
-	b, _ := json.Marshal(s)
-	return b
+func encode(s *registry.Service) ([]byte, error) {
+	return json.Marshal(s)
 }
 
-func decode(ds []byte) *registry.Service {
+func decode(ds []byte) (*registry.Service, error) {
 	var s *registry.Service
-	json.Unmarshal(ds, &s)
-	return s
+	err := json.Unmarshal(ds, &s)
+	return s, err
 }
 
 func nodePath(s, id string) string {
@@ -31,60 +30,32 @@ func servicePath(s string) string {
 }
 
 func createPath(path string, data []byte, client *zk.Conn) error {
-	var err error
-
-	pathExists, _, _ := client.Exists(path)
-	name := "/"
-	p := strings.Split(path, "/")
-	if !pathExists {
-		for _, v := range p[1 : len(p)-1] {
-			name += v
-			e, _, _ := client.Exists(name)
-			if !e {
-				_, err = client.Create(name, []byte{}, int32(0), zk.WorldACL(zk.PermAll))
-				if err != nil {
-					return err
-				}
-			}
-			name += "/"
-		}
-		_, err = client.Create(path, data, int32(0), zk.WorldACL(zk.PermAll))
-	}
-	return err
-}
-
-func getServices(c *zk.Conn, vars map[string]*registry.Service) error {
-	services, _, err := c.Children(prefix)
+	exists, _, err := client.Exists(path)
 	if err != nil {
 		return err
 	}
 
-	for _, key := range services {
-		s := servicePath(key)
-		nodes, _, err := c.Children(s)
-		if err != nil {
-			return err
-		}
+	if exists {
+		return nil
+	}
 
-		for _, node := range nodes {
-			_, stat, err := c.Children(nodePath(key, node))
+	name := "/"
+	p := strings.Split(path, "/")
+
+	for _, v := range p[1 : len(p)-1] {
+		name += v
+		e, _, _ := client.Exists(name)
+		if !e {
+			_, err = client.Create(name, []byte{}, int32(0), zk.WorldACL(zk.PermAll))
 			if err != nil {
 				return err
 			}
-			if stat.NumChildren == 0 {
-				b, _, err := c.Get(nodePath(key, node))
-				if err != nil {
-					return err
-				}
-				service := &registry.Service{}
-				i := decode(b)
-				service.Name = i.Name
-				vars[s] = service
-			}
 		}
+		name += "/"
 	}
 
-	return nil
+	_, err = client.Create(path, data, int32(0), zk.WorldACL(zk.PermAll))
+	return err
 }
 
 func contains(s []string, e string) bool {
