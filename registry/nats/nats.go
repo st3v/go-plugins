@@ -298,18 +298,16 @@ func (n *natsRegistry) GetService(s string) ([]*registry.Service, error) {
 }
 
 func (n *natsRegistry) ListServices() ([]*registry.Service, error) {
-	var services []*registry.Service
-	serviceMap := make(map[string]*registry.Service)
-
 	s, err := n.query("")
 	if err != nil {
 		return nil, err
 	}
 
+	var services []*registry.Service
+	serviceMap := make(map[string]*registry.Service)
+
 	for _, v := range s {
-		svc := &registry.Service{}
-		svc.Name = v.Name
-		serviceMap[v.Name] = svc
+		serviceMap[v.Name] = &registry.Service{Name: v.Name}
 	}
 
 	for _, v := range serviceMap {
