@@ -6,7 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"path/filepath"
+	"path"
 	"runtime"
 	"strings"
 	"time"
@@ -44,11 +44,11 @@ func decode(ds string) *registry.Service {
 func nodePath(s, id string) string {
 	service := strings.Replace(s, "/", "-", -1)
 	node := strings.Replace(id, "/", "-", -1)
-	return filepath.Join(prefix, service, node)
+	return path.Join(prefix, service, node)
 }
 
 func servicePath(s string) string {
-	return filepath.Join(prefix, strings.Replace(s, "/", "-", -1))
+	return path.Join(prefix, strings.Replace(s, "/", "-", -1))
 }
 
 func (e *etcdRegistry) Deregister(s *registry.Service) error {
