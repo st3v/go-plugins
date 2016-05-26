@@ -8,7 +8,6 @@ to build a service discovery mechanism.
 
 
 ## Gotchas
-* You can only Register/Deregister one node at a time.
 * Registering/Deregistering relies on the HOSTNAME Environment Variable, which inside a pod
 is the place where it can be retrieved from. (This needs improving)
 
