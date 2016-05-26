@@ -54,40 +54,6 @@ func updateMetadata(a, b *client.Meta) {
 	}
 }
 
-func updateMockMetadata(a *mockMeta, b *client.Meta) {
-	if a == nil || b == nil {
-		return
-	}
-
-	if b.Labels != nil {
-		labels := *a.Labels
-		if a.Labels != nil {
-			for lk, lv := range b.Labels {
-				if labels != nil && lv == nil {
-					delete(labels, lk)
-					continue
-				}
-				labels[lk] = lv
-			}
-		}
-
-	}
-
-	if b.Annotations != nil {
-		ann := a.Annotations
-		if ann == nil {
-			a.Annotations = map[string]*string{}
-		}
-		for ak, av := range b.Annotations {
-			if av == nil {
-				delete(ann, ak)
-				continue
-			}
-			a.Annotations[ak] = av
-		}
-	}
-}
-
 func labelFilterMatch(a map[string]*string, b map[string]string) bool {
 	match := true
 	for lk, lv := range b {

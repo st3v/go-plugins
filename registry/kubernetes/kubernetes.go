@@ -5,20 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/micro/go-plugins/registry/kubernetes/client"
-	"github.com/micro/go-plugins/registry/kubernetes/client/api"
 
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
 )
 
 type kregistry struct {
-	sync.Mutex
 	client  client.Kubernetes
 	timeout time.Duration
 }
@@ -29,51 +25,36 @@ var (
 	svcSelectorPrefix = "micro.mu/selector-"
 	svcSelectorValue  = "service"
 
-	labelNameKey          = "micro.mu/name"
 	labelTypeKey          = "micro.mu/type"
 	labelTypeValueService = "service"
-	labelTypeValuePod     = "pod"
 
 	// used on k8s services to scope a serialised
 	// micro service by pod name
 	annotationServiceKeyPrefix = "micro.mu/service-"
+
+	// Pod status
+	podRunning = "Running"
 )
+
+// podSelector
+var podSelector = map[string]string{
+	labelTypeKey: labelTypeValueService,
+}
 
 func init() {
 	cmd.DefaultRegistries["kubernetes"] = NewRegistry
 }
 
-var (
-	re = regexp.MustCompile("[^-a-z0-9]+")
-)
-
-// converts names to RFC952 names by
-//   - replacing '.' with '-'
-//   - lowercasing
-//   - stripping anything other [-a-z0-9]
-func toSlug(s string) string {
-	n := strings.Replace(s, ".", "-", -1)
-	return re.ReplaceAllString(strings.ToLower(n), "")
-}
-
-// Register will
-//   * get service endpoints if it exists, for use when cleaning up annotations
-//   * create a new K8s service, unless it already exists
-//   * updates service endpoints annotations with a serialised version
-//     of the service being registered using the curernt pod as a key.
-//   * add a service selector label to the current pod.
+// Register sets a service selector label and an annotation with a
+// serialised version of the service passed in.
 func (c *kregistry) Register(s *registry.Service, opts ...registry.RegisterOption) error {
-	if len(s.Nodes) != 1 {
-		return errors.New("Kubernetes registry will only register one node at a time")
+	if len(s.Nodes) == 0 {
+		return errors.New("you must register at least one node")
 	}
-
-	c.Lock()
-	defer c.Unlock()
 
 	// TODO: grab podname from somewhere better than this.
 	podName := os.Getenv("HOSTNAME")
 	svcName := s.Name
-	svcPort := s.Nodes[0].Port
 
 	// encode micro service
 	b, err := json.Marshal(s)
@@ -82,218 +63,79 @@ func (c *kregistry) Register(s *registry.Service, opts ...registry.RegisterOptio
 	}
 	svc := string(b)
 
-	// GetEndpoints
-	eps, err := c.client.GetEndpoints(toSlug(svcName))
-	if err == api.ErrNotFound {
-		err = nil
-		eps = nil
-	} else if err != nil {
-		return err
-	}
-
-	// if endpoints does not exist, create service
-	if eps == nil {
-		_, err := c.createK8sService(svcName, svcPort)
-		if err != nil {
-			return err
-		}
-	}
-
-	// annotations to include when endpoints is updated
-	annotations := map[string]*string{
-		annotationServiceKeyPrefix + podName: &svc,
-	}
-
-	// if endpoints does exist, nil out any old annotations
-	if eps != nil {
-		if len(eps.Subsets) > 0 {
-			subset := eps.Subsets[0]
-
-			for k := range eps.Metadata.Annotations {
-				if !strings.HasPrefix(k, annotationServiceKeyPrefix) {
-					continue
-				}
-
-				found := false
-				for _, address := range subset.Addresses {
-					n := address.TargetRef.Name
-					p := strings.TrimPrefix(k, annotationServiceKeyPrefix)
-					if p == n {
-						found = true
-						break
-					}
-				}
-
-				if !found {
-					annotations[k] = nil
-				}
-			}
-		}
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-	errs := make(chan error)
-
-	// Update Endpoints with annotations
-	go func() {
-		defer wg.Done()
-		_, err := c.client.UpdateEndpoints(toSlug(svcName), &client.Endpoints{
-			Metadata: &client.Meta{Annotations: annotations},
-		})
-		if err != nil {
-			errs <- err
-		}
-	}()
-
-	// Update pod with service selector
-	go func() {
-		defer wg.Done()
-		_, err := c.client.UpdatePod(podName, &client.Pod{
-			Metadata: &client.Meta{
-				Labels: map[string]*string{
-					labelTypeKey:                &labelTypeValuePod,
-					svcSelectorPrefix + svcName: &svcSelectorValue,
-				},
-			},
-		})
-		if err != nil {
-			errs <- err
-		}
-	}()
-
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		return nil
-	case err := <-errs:
-		return err
-	case <-time.After(c.timeout):
-		return errors.New("timeout")
-	}
-}
-
-func (c *kregistry) createK8sService(svcName string, port int) (*client.Service, error) {
-	ksNew := &client.Service{
+	pod := &client.Pod{
 		Metadata: &client.Meta{
-			Name: toSlug(svcName),
 			Labels: map[string]*string{
-				labelNameKey: &svcName,
-				labelTypeKey: &labelTypeValueService,
+				labelTypeKey:                &labelTypeValueService,
+				svcSelectorPrefix + svcName: &svcSelectorValue,
 			},
-		},
-		Spec: &client.ServiceSpec{
-			// ClusterIP: "None",
-			Ports: []client.Port{
-				client.Port{
-					Name:       "http",
-					Port:       port,
-					TargetPort: port,
-				},
-			},
-			Selector: map[string]string{
-				svcSelectorPrefix + svcName: svcSelectorValue,
+			Annotations: map[string]*string{
+				annotationServiceKeyPrefix + svcName: &svc,
 			},
 		},
 	}
 
-	return c.client.CreateService(ksNew)
+	if _, err := c.client.UpdatePod(podName, pod); err != nil {
+		return err
+	}
+
+	return nil
+
 }
 
-// Deregister will remove a annotations from a service, and remove
-// service selector label from the current pod
+// Deregister nils out any things set in Register
 func (c *kregistry) Deregister(s *registry.Service) error {
-	if len(s.Nodes) != 1 {
-		return errors.New("Kubernetes registry will only deregister one node at a time")
+	if len(s.Nodes) == 0 {
+		return errors.New("you must deregister at least one node")
 	}
-
-	c.Lock()
-	defer c.Unlock()
 
 	// TODO: grab podname from somewhere better than this.
 	podName := os.Getenv("HOSTNAME")
 	svcName := s.Name
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-	errs := make(chan error)
-
-	// Update Endpoints with annotations
-	go func() {
-		defer wg.Done()
-		_, err := c.client.UpdateEndpoints(toSlug(svcName), &client.Endpoints{
-			Metadata: &client.Meta{
-				Annotations: map[string]*string{
-					annotationServiceKeyPrefix + podName: nil,
-				},
+	pod := &client.Pod{
+		Metadata: &client.Meta{
+			Labels: map[string]*string{
+				svcSelectorPrefix + svcName: nil,
 			},
-		})
-		if err != nil {
-			errs <- err
-		}
-	}()
-
-	// Update pod with service selector
-	go func() {
-		defer wg.Done()
-		_, err := c.client.UpdatePod(podName, &client.Pod{
-			Metadata: &client.Meta{
-				Labels: map[string]*string{
-					svcSelectorPrefix + svcName: nil,
-				},
+			Annotations: map[string]*string{
+				annotationServiceKeyPrefix + svcName: nil,
 			},
-		})
-		if err != nil {
-			errs <- err
-		}
-	}()
-
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		return nil
-	case err := <-errs:
-		return err
-	case <-time.After(c.timeout):
-		return errors.New("timeout")
+		},
 	}
+
+	if _, err := c.client.UpdatePod(podName, pod); err != nil {
+		return err
+	}
+
+	return nil
+
 }
 
-// GetService uses the endpoints API to retrieve the current service.
-// It deserialises the micro services from the annotations,
-// and uses the subset addresses to build a list of registry.Services
+// GetService will get all the pods with the given service selector,
+// and build services from the annotations.
 func (c *kregistry) GetService(name string) ([]*registry.Service, error) {
-	endpoints, err := c.client.GetEndpoints(toSlug(name))
-	if err == api.ErrNotFound {
-		return nil, registry.ErrNotFound
-	} else if err != nil {
+	pods, err := c.client.ListPods(map[string]string{
+		svcSelectorPrefix + name: svcSelectorValue,
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	if len(endpoints.Subsets) == 0 || len(endpoints.Subsets[0].Addresses) == 0 {
+	if len(pods.Items) == 0 {
 		return nil, registry.ErrNotFound
 	}
 
 	// svcs mapped by version
 	svcs := make(map[string]*registry.Service)
-	subset := endpoints.Subsets[0]
-	port := subset.Ports[0].Port
 
-	// loop through endpoints
-	for _, address := range subset.Addresses {
+	// loop through items
+	for _, pod := range pods.Items {
+		if pod.Status.Phase != podRunning {
+			continue
+		}
 		// get serialised service from annotation
-		an := annotationServiceKeyPrefix + address.TargetRef.Name
-		svcStr, ok := endpoints.Metadata.Annotations[an]
+		svcStr, ok := pod.Metadata.Annotations[annotationServiceKeyPrefix+name]
 		if !ok {
 			continue
 		}
@@ -302,24 +144,17 @@ func (c *kregistry) GetService(name string) ([]*registry.Service, error) {
 		var svc registry.Service
 		err := json.Unmarshal([]byte(*svcStr), &svc)
 		if err != nil {
-			return nil, fmt.Errorf("could not unmarshal service '%s' from service annotation '%s'", name, an)
+			return nil, fmt.Errorf("could not unmarshal service '%s' from pod annotation", name)
 		}
 
 		// merge up pod service & ip with versioned service.
 		vs, ok := svcs[svc.Version]
 		if !ok {
-			svc.Nodes[0].Address = address.IP
-			svc.Nodes[0].Port = port
 			svcs[svc.Version] = &svc
 			continue
 		}
 
-		vs.Nodes = append(vs.Nodes, &registry.Node{
-			Address:  address.IP,
-			Port:     port,
-			Metadata: svc.Nodes[0].Metadata,
-			Id:       svc.Nodes[0].Id,
-		})
+		vs.Nodes = append(vs.Nodes, svc.Nodes...)
 	}
 
 	var list []*registry.Service
@@ -331,26 +166,33 @@ func (c *kregistry) GetService(name string) ([]*registry.Service, error) {
 
 // ListServices will list all the service names
 func (c *kregistry) ListServices() ([]*registry.Service, error) {
-	endpointsList, err := c.client.ListEndpoints(map[string]string{
-		labelTypeKey: labelTypeValueService,
-	})
+	pods, err := c.client.ListPods(podSelector)
 	if err != nil {
 		return nil, err
 	}
 
-	var list []*registry.Service
+	// svcs mapped by name
+	svcs := make(map[string]bool)
 
-	for _, item := range endpointsList.Items {
-		if len(item.Subsets) == 0 || len(item.Subsets[0].Addresses) == 0 {
+	for _, pod := range pods.Items {
+		if pod.Status.Phase != podRunning {
 			continue
 		}
-		name, ok := item.Metadata.Labels[labelNameKey]
-		if !ok {
-			continue
+		for ak := range pod.Metadata.Annotations {
+			if !strings.HasPrefix(ak, annotationServiceKeyPrefix) {
+				continue
+			}
+			name := strings.TrimPrefix(ak, annotationServiceKeyPrefix)
+			if len(name) > 0 {
+				svcs[name] = true
+			}
 		}
-		list = append(list, &registry.Service{Name: *name})
 	}
 
+	var list []*registry.Service
+	for val := range svcs {
+		list = append(list, &registry.Service{Name: val})
+	}
 	return list, nil
 }
 

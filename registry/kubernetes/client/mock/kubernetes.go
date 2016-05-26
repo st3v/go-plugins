@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/micro/go-plugins/registry/kubernetes/client"
@@ -11,26 +12,9 @@ import (
 // Client ...
 type Client struct {
 	sync.Mutex
-	Pods         map[string]*client.Pod
-	Services     map[string]*mockService
-	Endpoints    map[string]*mockEndpoints
-	WatchResults chan watch.Event
-}
-
-type mockMeta struct {
-	Name        string
-	Annotations map[string]*string
-	Labels      *map[string]*string
-}
-
-type mockService struct {
-	Metadata *mockMeta
-	Spec     *client.ServiceSpec
-}
-
-type mockEndpoints struct {
-	Metadata *mockMeta
-	Subsets  []client.Subset
+	Pods     map[string]*client.Pod
+	events   chan watch.Event
+	watchers []*mockWatcher
 }
 
 // UpdatePod ...
@@ -41,154 +25,44 @@ func (m *Client) UpdatePod(podName string, pod *client.Pod) (*client.Pod, error)
 	}
 
 	updateMetadata(p.Metadata, pod.Metadata)
+
+	pstr, _ := json.Marshal(p)
+
+	m.events <- watch.Event{
+		Type:   watch.Modified,
+		Object: json.RawMessage(pstr),
+	}
+
 	return nil, nil
 }
 
-// GetService ...
-func (m *Client) GetService(name string) (*client.Service, error) {
+// ListPods ...
+func (m *Client) ListPods(labels map[string]string) (*client.PodList, error) {
+	var pods []client.Pod
 
-	s, ok := m.Services[name]
-	if !ok {
-		return nil, api.ErrNotFound
-	}
-
-	ss := &client.Service{
-		Metadata: &client.Meta{
-			Name:        s.Metadata.Name,
-			Annotations: s.Metadata.Annotations,
-			Labels:      *s.Metadata.Labels,
-		},
-		Spec: s.Spec,
-	}
-
-	return ss, nil
-}
-
-// CreateService ...
-func (m *Client) CreateService(s *client.Service) (*client.Service, error) {
-
-	m.Services[s.Metadata.Name] = &mockService{
-		Metadata: &mockMeta{
-			Name:        s.Metadata.Name,
-			Annotations: s.Metadata.Annotations,
-			Labels:      &s.Metadata.Labels,
-		},
-		Spec: s.Spec,
-	}
-
-	m.Endpoints[s.Metadata.Name] = &mockEndpoints{
-		Metadata: &mockMeta{
-			Name:        s.Metadata.Name,
-			Annotations: s.Metadata.Annotations,
-			Labels:      &s.Metadata.Labels,
-		},
-	}
-	return s, nil
-}
-
-// UpdateService ...
-func (m *Client) UpdateService(name string, s *client.Service) (*client.Service, error) {
-
-	svc := m.Services[name]
-	if svc == nil {
-		return nil, api.ErrNotFound
-	}
-
-	updateMockMetadata(svc.Metadata, s.Metadata)
-	return m.GetService(name)
-}
-
-// GetEndpoints ...
-func (m *Client) GetEndpoints(name string) (*client.Endpoints, error) {
-
-	svc, ok := m.Services[name]
-	if !ok {
-		return nil, api.ErrNotFound
-	}
-
-	selectors := svc.Spec.Selector
-	sub := client.Subset{}
-
-	for _, p := range m.Pods {
-		if !labelFilterMatch(p.Metadata.Labels, selectors) {
-			continue
-		}
-
-		// add address to subset
-		sub.Addresses = append(sub.Addresses, client.Address{
-			IP:        p.Status.PodIP,
-			TargetRef: client.ObjectRef{Name: p.Metadata.Name},
-		})
-	}
-
-	// sub.Ports = []client.SubsetPort{}
-	for _, p := range svc.Spec.Ports {
-		sub.Ports = append(sub.Ports, client.SubsetPort{
-			Name: p.Name,
-			Port: p.Port,
-		})
-	}
-
-	eps, ok := m.Endpoints[name]
-	if !ok {
-		return nil, api.ErrNotFound
-	}
-
-	e := &client.Endpoints{
-		Metadata: &client.Meta{
-			Name:        eps.Metadata.Name,
-			Annotations: eps.Metadata.Annotations,
-			Labels:      *eps.Metadata.Labels,
-		},
-		Subsets: []client.Subset{sub},
-	}
-	return e, nil
-}
-
-// UpdateEndpoints ...
-func (m *Client) UpdateEndpoints(name string, s *client.Endpoints) (*client.Endpoints, error) {
-	eps := m.Endpoints[name]
-	if eps == nil {
-		return nil, api.ErrNotFound
-	}
-
-	updateMockMetadata(eps.Metadata, s.Metadata)
-	return m.GetEndpoints(name)
-}
-
-// ListEndpoints ...
-func (m *Client) ListEndpoints(labels map[string]string) (*client.EndpointsList, error) {
-	var svcs []client.Endpoints
-	for _, v := range m.Endpoints {
-		if labelFilterMatch(*v.Metadata.Labels, labels) {
-			e, err := m.GetEndpoints(v.Metadata.Name)
-			if err != nil {
-				return nil, err
-			}
-			svcs = append(svcs, *e)
+	for _, v := range m.Pods {
+		if labelFilterMatch(v.Metadata.Labels, labels) {
+			pods = append(pods, *v)
 		}
 	}
-	return &client.EndpointsList{
-		Items: svcs,
+	return &client.PodList{
+		Items: pods,
 	}, nil
 }
 
-// WatchEndpoints ...
-func (m *Client) WatchEndpoints(labels map[string]string) (watch.Watch, error) {
+// WatchPods ...
+func (m *Client) WatchPods(labels map[string]string) (watch.Watch, error) {
 	w := &mockWatcher{
 		results: make(chan watch.Event),
 		stop:    make(chan bool),
 	}
 
+	i := len(m.watchers) // length of watchers is current index
+	m.watchers = append(m.watchers, w)
+
 	go func() {
-		for {
-			select {
-			case f := <-m.WatchResults:
-				w.results <- f
-			case <-w.stop:
-				break
-			}
-		}
+		<-w.stop
+		m.watchers = append(m.watchers[:i], m.watchers[i+1:]...)
 	}()
 
 	return w, nil
@@ -201,17 +75,34 @@ func newClient() client.Kubernetes {
 
 // NewClient ...
 func NewClient() *Client {
-	return &Client{
-		Pods:         make(map[string]*client.Pod),
-		Services:     make(map[string]*mockService),
-		Endpoints:    make(map[string]*mockEndpoints),
-		WatchResults: make(chan watch.Event),
+	c := &Client{
+		Pods:   make(map[string]*client.Pod),
+		events: make(chan watch.Event),
 	}
+
+	// broadcast events to watchers
+	go func() {
+		for e := range c.events {
+			for _, w := range c.watchers {
+				w.results <- e
+			}
+		}
+	}()
+
+	return c
 }
 
 // Teardown ...
 func Teardown(c *Client) {
+
+	for _, p := range c.Pods {
+		pstr, _ := json.Marshal(p)
+
+		c.events <- watch.Event{
+			Type:   watch.Deleted,
+			Object: json.RawMessage(pstr),
+		}
+	}
+
 	c.Pods = make(map[string]*client.Pod)
-	c.Services = make(map[string]*mockService)
-	c.Endpoints = make(map[string]*mockEndpoints)
 }
