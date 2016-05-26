@@ -37,7 +37,6 @@ func (k *k8sWatcher) updateCache() ([]*registry.Result, error) {
 		rslts := k.buildPodResults(&pod, nil)
 
 		for _, r := range rslts {
-			log.Printf("K8s Watcher ResultItem: %s -> %s -> %s:%s", r.Action, pod.Metadata.Name, r.Service.Name, r.Service.Nodes[0].Address)
 			results = append(results, r)
 		}
 
@@ -159,8 +158,6 @@ func (k *k8sWatcher) handleEvent(event watch.Event) {
 			if pod.Status.Phase != podRunning {
 				result.Action = "delete"
 			}
-
-			log.Printf("K8s Watcher Mod: %s -> %s -> %s", result.Action, result.Service.Name, pod.Metadata.Name)
 			k.next <- result
 		}
 
@@ -176,7 +173,6 @@ func (k *k8sWatcher) handleEvent(event watch.Event) {
 
 		for _, result := range results {
 			result.Action = "delete"
-			log.Printf("K8s Watcher Del: %s -> %s", result.Action, result.Service.Nodes[0].Id)
 			k.next <- result
 		}
 
