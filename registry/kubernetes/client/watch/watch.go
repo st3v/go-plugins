@@ -1,5 +1,7 @@
 package watch
 
+import "encoding/json"
+
 // Watch ...
 type Watch interface {
 	Stop()
@@ -19,6 +21,6 @@ const (
 
 // Event represents a single event to a watched resource.
 type Event struct {
-	Type   EventType   `json:"type"`
-	Object interface{} `json:"object"`
+	Type   EventType       `json:"type"`
+	Object json.RawMessage `json:"object"`
 }

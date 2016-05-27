@@ -18,6 +18,13 @@ type client struct {
 	opts *api.Options
 }
 
+// ListPods ...
+func (c *client) ListPods(labels map[string]string) (*PodList, error) {
+	var pods PodList
+	err := api.NewRequest(c.opts).Get().Resource("pods").Params(&api.Params{LabelSelector: labels}).Do().Into(&pods)
+	return &pods, err
+}
+
 // UpdatePod ...
 func (c *client) UpdatePod(name string, p *Pod) (*Pod, error) {
 	var pod Pod
@@ -25,44 +32,9 @@ func (c *client) UpdatePod(name string, p *Pod) (*Pod, error) {
 	return &pod, err
 }
 
-// CreateService ...
-func (c *client) CreateService(s *Service) (*Service, error) {
-	var service Service
-	err := api.NewRequest(c.opts).Post().Resource("services").Body(s).Do().Into(&service)
-	return &service, err
-}
-
-// UpdateService ...
-func (c *client) UpdateService(name string, s *Service) (*Service, error) {
-	var service Service
-	err := api.NewRequest(c.opts).Patch().Resource("services").Name(name).Body(s).Do().Into(&service)
-	return &service, err
-}
-
-// ListEndpoints ...
-func (c *client) ListEndpoints(labels map[string]string) (*EndpointsList, error) {
-	var endpoints EndpointsList
-	err := api.NewRequest(c.opts).Get().Resource("endpoints").Params(&api.Params{LabelSelector: labels}).Do().Into(&endpoints)
-	return &endpoints, err
-}
-
-// GetEndpoints ...
-func (c *client) GetEndpoints(name string) (*Endpoints, error) {
-	var endpoints Endpoints
-	err := api.NewRequest(c.opts).Get().Resource("endpoints").Name(name).Do().Into(&endpoints)
-	return &endpoints, err
-}
-
-// UpdateEndpoints ...
-func (c *client) UpdateEndpoints(name string, s *Endpoints) (*Endpoints, error) {
-	var endpoints Endpoints
-	err := api.NewRequest(c.opts).Patch().Resource("endpoints").Name(name).Body(s).Do().Into(&endpoints)
-	return &endpoints, err
-}
-
-// WatchEndpoints ...
-func (c *client) WatchEndpoints(labels map[string]string) (watch.Watch, error) {
-	return api.NewRequest(c.opts).Get().Resource("endpoints").Params(&api.Params{LabelSelector: labels}).Watch()
+// WatchPods ...
+func (c *client) WatchPods(labels map[string]string) (watch.Watch, error) {
+	return api.NewRequest(c.opts).Get().Resource("pods").Params(&api.Params{LabelSelector: labels}).Watch()
 }
 
 // NewClientByHost sets up a client by host

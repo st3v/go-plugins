@@ -178,7 +178,7 @@ func (r *Request) Watch() (watch.Watch, error) {
 		return nil, err
 	}
 
-	w, err := watch.NewBodyWatcher(req)
+	w, err := watch.NewBodyWatcher(req, r.client)
 	return w, err
 }
 
