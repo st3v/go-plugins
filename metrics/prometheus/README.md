@@ -1,7 +1,7 @@
 # Prometheus Metrics
 
-This is a metrics plugin for prometheus. It pushes metrics on a flush interval to the pushgateway. 
-It operates in the same manner as other metrics plugins.
+This is a [go-platform/metrics](https://github.com/micro/go-platform/tree/master/metrics) plugin for prometheus. 
+It pushes metrics on a flush interval to the pushgateway. It operates in the same manner as other metrics plugins.
 
 ## Usage
 
