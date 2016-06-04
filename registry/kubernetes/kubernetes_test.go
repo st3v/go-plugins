@@ -1,125 +1,506 @@
 package kubernetes
 
 import (
-	"fmt"
-	"io/ioutil"
+	"encoding/json"
 	"log"
-	"net/http"
-	"net/http/httptest"
+	"os"
 	"reflect"
-	"strings"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/micro/go-micro/registry"
+	"github.com/micro/go-micro/selector"
+	"github.com/micro/go-micro/selector/cache"
+	"github.com/micro/go-plugins/registry/kubernetes/client"
+	"github.com/micro/go-plugins/registry/kubernetes/client/mock"
 )
 
-var data = map[string]string{
-	"/api/v1/namespaces/default/endpoints/foo-service":                  `{"kind":"Endpoints","apiVersion":"v1","metadata":{"name":"foo-service","labels":{"name":"foo-service"},"annotations":{}},"subsets":[{"addresses":[{"ip":"10.0.0.1","targetRef":{"kind":"Pod","namespace":"default","name":"foo-service-pod-1"}}],"ports":[{"name":"http","port":80,"protocol":"TCP"}]}]}`,
-	"/api/v1/namespaces/default/endpoints/bar-service":                  `{"kind":"Endpoints","apiVersion":"v1","metadata":{"name":"bar-service","labels":{"name":"bar-service"},"annotations":{}},"subsets":[{"addresses":[{"ip":"10.0.1.1","targetRef":{"kind":"Pod","namespace":"default","name":"bar-service-pod-1"}},{"ip":"10.0.1.2","targetRef":{"kind":"Pod","namespace":"default","name":"bar-service-pod-2"}}],"ports":[{"name":"http","port":80,"protocol":"TCP"}]}]}`,
-	"/api/v1/namespaces/default/endpoints/baz-service":                  `{"kind":"Endpoints","apiVersion":"v1","metadata":{"name":"baz-service","labels":{"name":"baz-service"},"annotations":{}},"subsets":[{"addresses":[{"ip":"10.0.2.1","targetRef":{"kind":"Pod","namespace":"default","name":"baz-service-pod-1"}},{"ip":"10.0.2.2","targetRef":{"kind":"Pod","namespace":"default","name":"baz-service-pod-2"}},{"ip":"10.0.2.3","targetRef":{"kind":"Pod","namespace":"default","name":"baz-service-pod-3"}}],"ports":[{"name":"http","port":80,"protocol":"TCP"}]}]}`,
-	"/api/v1/namespaces/default/pods?labelSelector=micro%3Dfoo-service": `{"kind":"PodList","apiVersion":"v1","metadata":{},"items":[{"metadata":{"name":"foo-service-pod-1","namespace":"default","labels":{"micro":"foo-service"},"annotations":{"micro/endpoints": "[{\"name\":\"foo-service.ep1\"}]","micro/meta":"{\"broker\":\"http\",\"registry\":\"kubernetes\",\"server\":\"rpc\",\"transport\":\"http\"}","micro/name":"foo-service","micro/version":"1"}},"status":{"phase":"Running","podIP":"10.0.0.1"}}]}`,
-	"/api/v1/namespaces/default/pods?labelSelector=micro%3Dbar-service": `{"kind":"PodList","apiVersion":"v1","metadata":{},"items":[{"metadata":{"name":"bar-service-pod-1","namespace":"default","labels":{"micro":"bar-service"},"annotations":{"micro/endpoints": "[{\"name\":\"bar-service.ep1\"}]","micro/meta":"{\"broker\":\"http\",\"registry\":\"kubernetes\",\"server\":\"rpc\",\"transport\":\"http\"}","micro/name":"bar-service","micro/version":"1"}},"status":{"phase":"Running","podIP":"10.0.1.1"}},{"metadata":{"name":"bar-service-pod-2","namespace":"default","labels":{"micro":"bar-service"},"annotations":{"micro/endpoints": "[{\"name\":\"bar-service.ep1\"}]", "micro/meta":"{\"broker\":\"http\",\"registry\":\"kubernetes\",\"server\":\"rpc\",\"transport\":\"http\"}","micro/name":"bar-service","micro/version":"1"}},"status":{"phase":"Running","podIP":"10.0.1.2"}}]}`,
-	"/api/v1/namespaces/default/pods?labelSelector=micro%3Dbaz-service": `{"kind":"PodList","apiVersion":"v1","metadata":{},"items":[{"metadata":{"name":"baz-service-pod-1","namespace":"default","labels":{"micro":"baz-service"},"annotations":{"micro/endpoints": "[{\"name\":\"baz-service.ep1\"}]","micro/meta":"{\"broker\":\"http\",\"registry\":\"kubernetes\",\"server\":\"rpc\",\"transport\":\"http\"}","micro/name":"baz-service","micro/version":"1"}},"status":{"phase":"Running","podIP":"10.0.2.1"}},{"metadata":{"name":"baz-service-pod-2","namespace":"default","labels":{"micro":"baz-service"},"annotations":{"micro/endpoints": "[{\"name\":\"baz-service.ep1\"}]", "micro/meta":"{\"broker\":\"http\",\"registry\":\"kubernetes\",\"server\":\"rpc\",\"transport\":\"http\"}","micro/name":"baz-service","micro/version":"1"}},"status":{"phase":"Running","podIP":"10.0.2.2"}},{"metadata":{"name":"baz-service-pod-3","namespace":"default","labels":{"micro":"baz-service"},"annotations":{"micro/endpoints": "[{\"name\":\"baz-service.ep1\"},{\"name\":\"baz-service.ep2\"}]","micro/meta":"{\"broker\":\"http\",\"registry\":\"kubernetes\",\"server\":\"rpc\",\"transport\":\"http\"}","micro/name":"baz-service","micro/version":"2"}},"status":{"phase":"Running","podIP":"10.0.2.3"}}]}`,
-	"/api/v1/namespaces/default/services":                               `{"kind":"ServiceList","apiVersion":"v1","metadata":{},"items":[{"metadata":{"name":"foo-service","labels":{},"annotations":{}}},{"metadata":{"name":"bar-service","labels":{},"annotations":{}}},{"metadata":{"name":"baz-service","labels":{},"annotations":{}}}]}`,
+var (
+	mockClient = mock.NewClient()
+	podIP      = 1
+)
+
+func setupPod(name string) *client.Pod {
+	p, ok := mockClient.Pods[name]
+	if ok || p != nil {
+		return p
+	}
+
+	// inc pod
+	podIP++
+
+	p = &client.Pod{
+		Metadata: &client.Meta{
+			Name:        name,
+			Labels:      make(map[string]*string),
+			Annotations: make(map[string]*string),
+		},
+		Status: &client.Status{
+			PodIP: "10.0.0." + strconv.Itoa(podIP),
+			Phase: podRunning,
+		},
+	}
+
+	mockClient.Pods[name] = p
+	return p
 }
 
-var meta = map[string]string{
-	"broker":    "http",
-	"registry":  "kubernetes",
-	"server":    "rpc",
-	"transport": "http",
+// registers a service against a given pod
+func register(r registry.Registry, podName string, svc *registry.Service) {
+	os.Setenv("HOSTNAME", podName)
+
+	pod := setupPod(podName)
+
+	svc.Nodes = append(svc.Nodes, &registry.Node{
+		Id:       svc.Name + ":" + pod.Metadata.Name,
+		Address:  pod.Status.PodIP,
+		Port:     80,
+		Metadata: map[string]string{},
+	})
+
+	if err := r.Register(svc); err != nil {
+		log.Fatalf("did not expect Register() to fail: %v", err)
+	}
+
+	os.Setenv("HOSTNAME", "")
 }
 
-var testdata = map[string][]*registry.Service{
-	"foo-service": []*registry.Service{
-		{
-			Name:    "foo-service",
-			Version: "1",
-			Nodes: []*registry.Node{
-				{
-					Id:       "foo-service-pod-1",
-					Address:  "10.0.0.1",
-					Port:     80,
-					Metadata: meta,
-				},
-			},
-			Endpoints: []*registry.Endpoint{
-				{
-					Name: "foo-service.ep1",
-				},
-			},
-		},
-	},
-	"bar-service": []*registry.Service{
-		{
-			Name:    "bar-service",
-			Version: "1",
-			Nodes: []*registry.Node{
-				{
-					Id:       "bar-service-pod-1",
-					Address:  "10.0.1.1",
-					Port:     80,
-					Metadata: meta,
-				},
-				{
-					Id:       "bar-service-pod-2",
-					Address:  "10.0.1.2",
-					Port:     80,
-					Metadata: meta,
-				},
-			},
-			Endpoints: []*registry.Endpoint{
-				{
-					Name: "bar-service.ep1",
-				},
-			},
-		},
-	},
-	"baz-service": []*registry.Service{
-		{
-			Name:    "baz-service",
-			Version: "1",
-			Nodes: []*registry.Node{
-				{
-					Id:       "baz-service-pod-1",
-					Address:  "10.0.2.1",
-					Port:     80,
-					Metadata: meta,
-				},
-				{
-					Id:       "baz-service-pod-2",
-					Address:  "10.0.2.2",
-					Port:     80,
-					Metadata: meta,
-				},
-			},
-			Endpoints: []*registry.Endpoint{
-				{
-					Name: "baz-service.ep1",
-				},
-			},
-		}, {
-			Name:    "baz-service",
-			Version: "2",
-			Nodes: []*registry.Node{
-				{
-					Id:       "baz-service-pod-3",
-					Address:  "10.0.2.3",
-					Port:     80,
-					Metadata: meta,
-				},
-			},
-			Endpoints: []*registry.Endpoint{
-				{
-					Name: "baz-service.ep1",
-				},
-				{
-					Name: "baz-service.ep2",
-				},
-			},
-		},
-	},
+func teardownRegistry() {
+	mock.Teardown(mockClient)
+}
+
+func setupRegistry(opts ...registry.Option) registry.Registry {
+	return &kregistry{
+		client:  mockClient,
+		timeout: time.Second * 1,
+	}
+}
+
+//
+//
+// Tests start here
+//
+//
+
+func TestRegister(t *testing.T) {
+	r := setupRegistry()
+	defer teardownRegistry()
+
+	svc := &registry.Service{Name: "foo.service", Version: "1"}
+	register(r, "pod-1", svc)
+
+	// check pod has correct labels/annotations
+	p := mockClient.Pods["pod-1"]
+	svcLabel, ok := p.Metadata.Labels[svcSelectorPrefix+"foo.service"]
+	if !ok || *svcLabel != svcSelectorValue {
+		t.Fatalf("expected to have pod selector label")
+	}
+
+	svcData, ok := p.Metadata.Annotations[annotationServiceKeyPrefix+"foo.service"]
+	if !ok || len(*svcData) == 0 {
+		t.Fatalf("expected to have annotation")
+	}
+
+	// unmarshal service data from annotation and compare
+	// service passed in to .Register()
+	var service *registry.Service
+	if err := json.Unmarshal([]byte(*svcData), &service); err != nil {
+		t.Fatalf("did not expect register unmarshal to fail %v", err)
+	}
+	if !reflect.DeepEqual(svc, service) {
+		t.Fatal("services did not match")
+	}
+}
+
+func TestRegisterTwoDifferentServicesOnePod(t *testing.T) {
+	r := setupRegistry()
+	defer teardownRegistry()
+
+	svc1 := &registry.Service{Name: "foo.service"}
+	svc2 := &registry.Service{Name: "bar.service"}
+
+	register(r, "pod-1", svc1)
+	register(r, "pod-1", svc2)
+
+	// check pod has correct labels/annotations
+	p := mockClient.Pods["pod-1"]
+	if svcLabel1, ok := p.Metadata.Labels[svcSelectorPrefix+"foo.service"]; !ok || *svcLabel1 != svcSelectorValue {
+		t.Fatalf("expected to have pod selector label for service one")
+	}
+	if svcLabel2, ok := p.Metadata.Labels[svcSelectorPrefix+"bar.service"]; !ok || *svcLabel2 != svcSelectorValue {
+		t.Fatalf("expected to have pod selector label for service two")
+	}
+	svcData1, ok := p.Metadata.Annotations[annotationServiceKeyPrefix+"foo.service"]
+	if !ok || len(*svcData1) == 0 {
+		t.Fatalf("expected to have annotation")
+	}
+	svcData2, ok := p.Metadata.Annotations[annotationServiceKeyPrefix+"bar.service"]
+	if !ok || len(*svcData1) == 0 {
+		t.Fatalf("expected to have annotation")
+	}
+
+	// unmarshal service data from annotation and compare
+	// service passed in to .Register()
+	var service1 *registry.Service
+	if err := json.Unmarshal([]byte(*svcData1), &service1); err != nil {
+		t.Fatalf("did not expect register unmarshal to fail %v", err)
+	}
+	if !reflect.DeepEqual(svc1, service1) {
+		t.Fatal("services did not match")
+	}
+
+	var service2 *registry.Service
+	if err := json.Unmarshal([]byte(*svcData2), &service2); err != nil {
+		t.Fatalf("did not expect register unmarshal to fail %v", err)
+	}
+	if !reflect.DeepEqual(svc2, service2) {
+		t.Fatal("services did not match")
+	}
+}
+
+func TestRegisterTwoDifferentServicesTwoPods(t *testing.T) {
+	r := setupRegistry()
+	defer teardownRegistry()
+
+	svc1 := &registry.Service{Name: "foo.service"}
+	svc2 := &registry.Service{Name: "bar.service"}
+	register(r, "pod-1", svc1)
+	register(r, "pod-2", svc2)
+
+	// check pod-1 has correct labels/annotations
+	p1 := mockClient.Pods["pod-1"]
+	if svcLabel1, ok := p1.Metadata.Labels[svcSelectorPrefix+"foo.service"]; !ok || *svcLabel1 != svcSelectorValue {
+		t.Fatalf("expected to have pod selector label for foo.service")
+	}
+	if _, ok := p1.Metadata.Labels[svcSelectorPrefix+"bar.service"]; ok {
+		t.Fatal("pod 1 shouldnt have label for bar.service")
+	}
+
+	// check pod-2 has correct labels/annotations
+	p2 := mockClient.Pods["pod-2"]
+	if svcLabel2, ok := p2.Metadata.Labels[svcSelectorPrefix+"bar.service"]; !ok || *svcLabel2 != svcSelectorValue {
+		t.Fatalf("expected to have pod selector label for bar.service")
+	}
+	if _, ok := p2.Metadata.Labels[svcSelectorPrefix+"foo.service"]; ok {
+		t.Fatal("pod 2 shouldnt have label for foo.service")
+	}
+
+	svcData1, ok := p1.Metadata.Annotations[annotationServiceKeyPrefix+"foo.service"]
+	if !ok || len(*svcData1) == 0 {
+		t.Fatalf("expected to have annotation")
+	}
+	if _, okp2 := p1.Metadata.Annotations[annotationServiceKeyPrefix+"bar.service"]; okp2 {
+		t.Fatal("bar.service shouldnt have annotation for pod2")
+	}
+
+	svcData2, ok := p2.Metadata.Annotations[annotationServiceKeyPrefix+"bar.service"]
+	if !ok || len(*svcData2) == 0 {
+		t.Fatalf("expected to have annotation")
+	}
+	if _, okp1 := p2.Metadata.Annotations[annotationServiceKeyPrefix+"foo.service"]; okp1 {
+		t.Fatal("bar.service shouldnt have annotation for pod1")
+	}
+
+	// unmarshal service data from annotation and compare
+	// service passed in to .Register()
+	var service1 *registry.Service
+	if err := json.Unmarshal([]byte(*svcData1), &service1); err != nil {
+		t.Fatalf("did not expect register unmarshal to fail %v", err)
+	}
+	if !reflect.DeepEqual(svc1, service1) {
+		t.Fatal("services did not match")
+	}
+
+	var service2 *registry.Service
+	if err := json.Unmarshal([]byte(*svcData2), &service2); err != nil {
+		t.Fatalf("did not expect register unmarshal to fail %v", err)
+	}
+	if !reflect.DeepEqual(svc2, service2) {
+		t.Fatal("services did not match")
+	}
+}
+
+func TestRegisterSingleVersionedServiceTwoPods(t *testing.T) {
+	r := setupRegistry()
+	defer teardownRegistry()
+
+	svc1 := &registry.Service{Name: "foo.service"}
+	svc2 := &registry.Service{Name: "foo.service"}
+	register(r, "pod-1", svc1)
+	register(r, "pod-2", svc2)
+
+	// check pod-1 has correct labels/annotations
+	p1 := mockClient.Pods["pod-1"]
+	if svcLabel1, ok := p1.Metadata.Labels[svcSelectorPrefix+"foo.service"]; !ok || *svcLabel1 != svcSelectorValue {
+		t.Fatalf("expected to have pod selector label for foo.service")
+	}
+
+	// check pod-2 has correct labels/annotations
+	p2 := mockClient.Pods["pod-2"]
+	if svcLabel2, ok := p2.Metadata.Labels[svcSelectorPrefix+"foo.service"]; !ok || *svcLabel2 != svcSelectorValue {
+		t.Fatalf("expected to have pod selector label for foo.service")
+	}
+
+	svcData1, ok := p1.Metadata.Annotations[annotationServiceKeyPrefix+"foo.service"]
+	if !ok || len(*svcData1) == 0 {
+		t.Fatalf("expected to have annotation")
+	}
+	svcData2, ok := p2.Metadata.Annotations[annotationServiceKeyPrefix+"foo.service"]
+	if !ok || len(*svcData2) == 0 {
+		t.Fatalf("expected to have annotation")
+	}
+
+	// unmarshal service data from annotation and compare
+	// service passed in to .Register()
+	var service1 *registry.Service
+	if err := json.Unmarshal([]byte(*svcData1), &service1); err != nil {
+		t.Fatalf("did not expect register unmarshal to fail %v", err)
+	}
+	if !reflect.DeepEqual(svc1, service1) {
+		t.Fatal("services did not match")
+	}
+
+	var service2 *registry.Service
+	if err := json.Unmarshal([]byte(*svcData2), &service2); err != nil {
+		t.Fatalf("did not expect register unmarshal to fail %v", err)
+	}
+	if !reflect.DeepEqual(svc2, service2) {
+		t.Fatal("services did not match")
+	}
+}
+
+func TestDeregister(t *testing.T) {
+	r := setupRegistry()
+	defer teardownRegistry()
+
+	svc1 := &registry.Service{Name: "foo.service"}
+	svc2 := &registry.Service{Name: "foo.service"}
+	register(r, "pod-1", svc1)
+	register(r, "pod-2", svc2)
+
+	// deregister one service
+	os.Setenv("HOSTNAME", "pod-1")
+	if err := r.Deregister(svc1); err != nil {
+		t.Fatalf("did not expect Deregister to fail %v", err)
+	}
+
+	// check pod-1 has correct labels/annotations
+	p1 := mockClient.Pods["pod-1"]
+	if svcLabel1, ok := p1.Metadata.Labels[svcSelectorPrefix+"foo.service"]; ok && *svcLabel1 == svcSelectorValue {
+		t.Fatalf("expected to NOT have pod selector label for foo.service")
+	}
+
+	// check pod-2 has correct labels/annotations
+	p2 := mockClient.Pods["pod-2"]
+	if svcLabel2, ok := p2.Metadata.Labels[svcSelectorPrefix+"foo.service"]; !ok || *svcLabel2 != svcSelectorValue {
+		t.Fatalf("expected to have pod selector label for foo.service")
+	}
+
+	svcData1, ok := p1.Metadata.Annotations[annotationServiceKeyPrefix+"foo.service"]
+	if ok && len(*svcData1) != 0 {
+		t.Fatalf("expected to NOT have annotation")
+	}
+	svcData2, ok := p2.Metadata.Annotations[annotationServiceKeyPrefix+"foo.service"]
+	if !ok || len(*svcData2) == 0 {
+		t.Fatalf("expected to have annotation")
+	}
+
+}
+
+func TestGetService(t *testing.T) {
+	r := setupRegistry()
+	defer teardownRegistry()
+
+	svc1 := &registry.Service{Name: "foo.service"}
+	register(r, "pod-1", svc1)
+
+	service, err := r.GetService("foo.service")
+	if err != nil {
+		t.Fatalf("did not expect GetService to fail %v", err)
+	}
+
+	// compare services
+	if !hasServices(service, []*registry.Service{svc1}) {
+		t.Fatal("expected service to match")
+	}
+}
+
+func TestGetServiceSameServiceTwoPods(t *testing.T) {
+	r := setupRegistry()
+	defer teardownRegistry()
+
+	svc1 := &registry.Service{Name: "foo.service", Version: "1"}
+	svc2 := &registry.Service{Name: "foo.service", Version: "1"}
+	register(r, "pod-1", svc1)
+	register(r, "pod-2", svc2)
+
+	service, err := r.GetService("foo.service")
+	if err != nil {
+		t.Fatalf("did not expect GetService to fail %v", err)
+	}
+
+	if len(service) != 1 {
+		t.Fatal("expected there to be only 1 service")
+	}
+
+	if len(service[0].Nodes) != 2 {
+		t.Fatal("expected there to be 2 nodes")
+	}
+	if !hasNodes(service[0].Nodes, []*registry.Node{svc1.Nodes[0], svc2.Nodes[0]}) {
+		t.Fatal("nodes dont match")
+	}
+}
+
+func TestGetServiceTwoVersionsTwoPods(t *testing.T) {
+	r := setupRegistry()
+	defer teardownRegistry()
+
+	svc1 := &registry.Service{Name: "foo.service", Version: "1"}
+	svc2 := &registry.Service{Name: "foo.service", Version: "2"}
+
+	register(r, "pod-1", svc1)
+	register(r, "pod-2", svc2)
+
+	service, err := r.GetService("foo.service")
+	if err != nil {
+		t.Fatalf("did not expect GetService to fail %v", err)
+	}
+
+	if len(service) != 2 {
+		t.Fatal("expected there to be 2 services")
+	}
+
+	// compare services
+	if !hasServices(service, []*registry.Service{svc1, svc2}) {
+		t.Fatal("expected service to match")
+	}
+}
+
+func TestListServices(t *testing.T) {
+	r := setupRegistry()
+	defer teardownRegistry()
+
+	svc1 := &registry.Service{Name: "foo.service"}
+	svc2 := &registry.Service{Name: "bar.service"}
+
+	register(r, "pod-1", svc1)
+	register(r, "pod-2", svc2)
+
+	services, err := r.ListServices()
+	if err != nil {
+		t.Fatalf("did not expect ListServices to fail %v", err)
+	}
+	if !hasServices(services, []*registry.Service{
+		{Name: "foo.service"},
+		{Name: "bar.service"},
+	}) {
+		t.Fatal("expected services to equal")
+	}
+
+	os.Setenv("HOSTNAME", "pod-1")
+	r.Deregister(svc1)
+	services2, err := r.ListServices()
+	if err != nil {
+		t.Fatalf("did not expect ListServices to fail %v", err)
+	}
+	if !hasServices(services2, []*registry.Service{
+		{Name: "bar.service"},
+	}) {
+		t.Fatal("expected services to equal")
+	}
+
+	// kill pod without deregistering.
+	delete(mockClient.Pods, "pod-2")
+
+	// shoudnt return old data
+	services3, err := r.ListServices()
+	if err != nil {
+		t.Fatalf("did not expect ListServices to fail %v", err)
+	}
+	if len(services3) != 0 {
+		t.Fatal("expected there to be no services")
+	}
+
+}
+
+func TestWatcher(t *testing.T) {
+	r := setupRegistry()
+	c := cache.NewSelector(selector.Registry(r))
+
+	// wait for watcher to get setup
+	time.Sleep(time.Millisecond)
+
+	// check that service is blank
+	if _, err := c.Select("foo.service"); err != registry.ErrNotFound {
+		log.Fatal("expected registry.ErrNotFound")
+	}
+
+	// setup svc
+	svc1 := &registry.Service{Name: "foo.service", Version: "1"}
+	register(r, "pod-1", svc1)
+	time.Sleep(time.Millisecond)
+
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	c.Select("foo.service", selector.WithFilter(func(svcs []*registry.Service) []*registry.Service {
+		defer wg.Done()
+		if !hasServices(svcs, []*registry.Service{svc1}) {
+			t.Fatal("expected services to match")
+		}
+		return nil
+	}))
+
+	// setup svc
+	svc2 := &registry.Service{Name: "foo.service", Version: "1"}
+	register(r, "pod-2", svc2)
+	time.Sleep(time.Millisecond)
+
+	c.Select("foo.service", selector.WithFilter(func(svcs []*registry.Service) []*registry.Service {
+		defer wg.Done()
+		if !hasNodes(svcs[0].Nodes, []*registry.Node{svc1.Nodes[0], svc2.Nodes[0]}) {
+			t.Fatal("expected to have same nodes")
+		}
+		return nil
+	}))
+
+	// deregister
+	os.Setenv("HOSTNAME", "pod-1")
+	r.Deregister(svc1)
+	time.Sleep(time.Millisecond)
+
+	c.Select("foo.service", selector.WithFilter(func(svcs []*registry.Service) []*registry.Service {
+
+		defer wg.Done()
+		if !hasServices(svcs, []*registry.Service{svc2}) {
+			t.Fatal("expected services to match")
+		}
+		return nil
+	}))
+
+	// remove pods
+	teardownRegistry()
+	time.Sleep(time.Millisecond)
+
+	if _, err := c.Select("foo.service"); err != registry.ErrNotFound {
+		log.Fatal("expected registry.ErrNotFound")
+	}
+
+	out := make(chan bool)
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	select {
+	case <-out:
+		return
+	case <-time.After(time.Second):
+		t.Fatal("expected c.Select() to be called 3 times")
+	}
+
 }
 
 func hasNodes(a, b []*registry.Node) bool {
@@ -127,19 +508,6 @@ func hasNodes(a, b []*registry.Node) bool {
 	for _, aV := range a {
 		for _, bV := range b {
 			if reflect.DeepEqual(aV, bV) {
-				found++
-				break
-			}
-		}
-	}
-	return found == len(b)
-}
-
-func hasEndpoint(a, b []*registry.Endpoint) bool {
-	found := 0
-	for _, aV := range a {
-		for _, bV := range b {
-			if aV.Name == bV.Name {
 				found++
 				break
 			}
@@ -162,205 +530,9 @@ func hasServices(a, b []*registry.Service) bool {
 			if !hasNodes(aV.Nodes, bV.Nodes) {
 				continue
 			}
-			if !hasEndpoint(aV.Endpoints, bV.Endpoints) {
-				continue
-			}
 			found++
 			break
 		}
 	}
 	return found == len(b)
-}
-
-var defaultHandleFunc = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, data[r.URL.RequestURI()])
-})
-
-func TestGetService(t *testing.T) {
-	ts := httptest.NewServer(defaultHandleFunc)
-	defer ts.Close()
-
-	r := NewRegistry(registry.Addrs(ts.URL))
-
-	fn := func(k string, v []*registry.Service) {
-		services, err := r.GetService(k)
-		if err != nil {
-			t.Errorf("Unexpected error getting service %s: %v", k, err)
-		}
-
-		if len(services) != len(v) {
-			t.Errorf("Expected %d services for %s, got %d", len(v), k, len(services))
-		}
-
-		if !hasServices(services, v) {
-			t.Errorf("expected %s to match", k)
-		}
-	}
-
-	for k, v := range testdata {
-		fn(k, v)
-	}
-}
-
-func TestListServices(t *testing.T) {
-	ts := httptest.NewServer(defaultHandleFunc)
-	defer ts.Close()
-
-	r := NewRegistry(registry.Addrs(ts.URL))
-
-	svc, err := r.ListServices()
-	if err != nil {
-		t.Errorf("Unexpected error listing services %v", err)
-	}
-
-	var found int
-	for _, aV := range svc {
-		for _, bV := range testdata[aV.Name] {
-			if aV.Name == bV.Name {
-				found++
-				break
-			}
-		}
-	}
-
-	if found != len(testdata) {
-		t.Errorf("did not find all services")
-	}
-
-}
-
-func TestRegister(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("did not expect error %v", err)
-		}
-
-		b := strings.TrimSpace(string(body))
-		expected := `{"metadata":{"annotations":{"micro/endpoints":"[{\"name\":\"foo\",\"request\":{\"name\":\"Req\",\"type\":\"R\",\"values\":null},\"response\":{\"name\":\"Res\",\"type\":\"R\",\"values\":null},\"metadata\":{\"foo\":\"bar\"}}]","micro/meta":"{\"bing\":\"bam\"}","micro/name":"foo-bar-baz","micro/version":"1.5"}}}`
-
-		if b != expected {
-			log.Print(string(body))
-			t.Fatal("expected json to match")
-		}
-
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	defer ts.Close()
-
-	r := NewRegistry(registry.Addrs(ts.URL))
-
-	s := &registry.Service{
-		Name:    "foo-bar-baz",
-		Version: "1.5",
-		Endpoints: []*registry.Endpoint{
-			{
-				Name:     "foo",
-				Request:  &registry.Value{Name: "Req", Type: "R"},
-				Response: &registry.Value{Name: "Res", Type: "R"},
-				Metadata: map[string]string{"foo": "bar"},
-			},
-		},
-		Nodes: []*registry.Node{
-			{
-				Id:       "foo-service-pod-1",
-				Address:  "10.0.0.1",
-				Port:     80,
-				Metadata: map[string]string{"bing": "bam"},
-			},
-		},
-	}
-
-	err := r.Register(s)
-	if err != nil {
-		t.Fatalf("did not expect error when registering %v", err)
-	}
-}
-
-var actions = []string{
-	`{"type":"ADDED","object":{"kind":"Endpoints","metadata":{"name":"foo-service"},"subsets":[]}}`,
-	`{"type":"MODIFIED","object":{"kind":"Endpoints","metadata":{"name":"foo-service"},"subsets":[{"addresses":[{"ip":"10.0.0.1","targetRef":{"kind":"Pod","namespace":"default","name":"foo-service-pod-1"}}],"ports":[{"name":"http","port":80,"protocol":"TCP"}]}]}}`,
-	`{"type":"MODIFIED","object":{"kind":"Endpoints","metadata":{"name":"foo-service"},"subsets":[{"addresses":[{"ip":"10.0.0.1","targetRef":{"kind":"Pod","namespace":"default","name":"foo-service-pod-1"}}, {"ip":"10.0.0.2","targetRef":{"kind":"Pod","namespace":"default","name":"foo-service-pod-2"}}],"ports":[{"name":"http","port":80,"protocol":"TCP"}]}]}}`,
-	`{"type":"DELETED","object":{"kind":"Endpoints","metadata":{"name":"foo-service"},"subsets":[{"addresses":[{"ip":"10.0.0.1","targetRef":{"kind":"Pod","namespace":"default","name":"foo-service-pod-1"}}, {"ip":"10.0.0.2","targetRef":{"kind":"Pod","namespace":"default","name":"foo-service-pod-2"}}],"ports":[{"name":"http","port":80,"protocol":"TCP"}]}]}}`,
-}
-
-func TestWatch(t *testing.T) {
-
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			t.Fatal("expected ResponseWriter to be a flusher")
-		}
-
-		for _, v := range actions {
-			fmt.Fprintf(w, "%s\n", v)
-			flusher.Flush()
-			time.Sleep(10 * time.Millisecond)
-		}
-	}))
-
-	defer ts.Close()
-
-	r := NewRegistry(registry.Addrs(ts.URL))
-
-	watcher, err := r.Watch()
-	if err != nil {
-		t.Fatalf("did not expect err %v", err)
-	}
-
-	// defer watcher.Stop()
-	ch := make(chan *registry.Result, 5)
-
-	go func() {
-		for {
-			event, err := watcher.Next()
-			if err != nil {
-				t.Fatalf("did not expect err %v", err)
-			}
-			ch <- event
-		}
-	}()
-
-	assert := func(a, b interface{}) {
-		if a != b {
-			t.Fatalf("expected %s to equal %s", a, b)
-		}
-	}
-
-	// first
-	if e := <-ch; e != nil {
-		assert(e.Action, "create")
-		assert(e.Service.Name, "foo-service")
-		assert(len(e.Service.Nodes), 0)
-	}
-
-	// second
-	if e := <-ch; e != nil {
-		assert(e.Action, "update")
-		assert(e.Service.Name, "foo-service")
-		assert(len(e.Service.Nodes), 1)
-		assert(e.Service.Nodes[0].Address, "10.0.0.1")
-	}
-
-	// third
-	if e := <-ch; e != nil {
-		assert(e.Action, "update")
-		assert(e.Service.Name, "foo-service")
-		assert(len(e.Service.Nodes), 2)
-		assert(e.Service.Nodes[0].Address, "10.0.0.1")
-		assert(e.Service.Nodes[1].Address, "10.0.0.2")
-	}
-
-	// fourth
-	if e := <-ch; e != nil {
-		assert(e.Action, "delete")
-		assert(e.Service.Name, "foo-service")
-		assert(len(e.Service.Nodes), 2)
-		assert(e.Service.Nodes[0].Address, "10.0.0.1")
-		assert(e.Service.Nodes[1].Address, "10.0.0.2")
-	}
-
 }

@@ -3,15 +3,13 @@ This is a plugin for go-micro that allows you to use Kubernetes as a registry.
 
 
 ## Overview
-You must have a "Service" and "Replication Controller" (or "Deployment") manifest
-for each service you deploy for the plugin to function.
+This registry plugin makes use of Annotations and Labels on a Kubernetes pod
+to build a service discovery mechanism.
 
-You can use the notion of "Replication Controllers" (or "Deployments") to scale
-your microservice. Make sure to include the label `micro: "<service-name>"` on
-your pod specification.
 
-The plugin makes use of Kubernetes "Services" to provide a list of addresses for
-each instance/pod of your service.
+## Gotchas
+* Registering/Deregistering relies on the HOSTNAME Environment Variable, which inside a pod
+is the place where it can be retrieved from. (This needs improving)
 
 
 ## Connecting to the Kubernetes API

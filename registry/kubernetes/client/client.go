@@ -8,28 +8,37 @@ import (
 	"net/http"
 	"os"
 	"path"
+
+	"github.com/micro/go-plugins/registry/kubernetes/client/api"
+	"github.com/micro/go-plugins/registry/kubernetes/client/watch"
 )
 
-// Kubernetes ...
-type Kubernetes interface {
-	GetEndpoints(serviceName string) (*Endpoints, error)
-	UpdatePod(podName string, pod *Pod) error
-	GetPods(labels map[string]string) (*PodList, error)
-	GetServices() (*ServiceList, error)
-	WatchEndpoints() (*WatchRequest, error)
+// Client ...
+type client struct {
+	opts *api.Options
 }
 
-// Config ...
-type Config struct {
-	Host        string
-	Namespace   string
-	BearerToken string
-	// TLSClientConfig *tls.Config
-	// Transport       *http.Transport
+// ListPods ...
+func (c *client) ListPods(labels map[string]string) (*PodList, error) {
+	var pods PodList
+	err := api.NewRequest(c.opts).Get().Resource("pods").Params(&api.Params{LabelSelector: labels}).Do().Into(&pods)
+	return &pods, err
+}
+
+// UpdatePod ...
+func (c *client) UpdatePod(name string, p *Pod) (*Pod, error) {
+	var pod Pod
+	err := api.NewRequest(c.opts).Patch().Resource("pods").Name(name).Body(p).Do().Into(&pod)
+	return &pod, err
+}
+
+// WatchPods ...
+func (c *client) WatchPods(labels map[string]string) (watch.Watch, error) {
+	return api.NewRequest(c.opts).Get().Resource("pods").Params(&api.Params{LabelSelector: labels}).Watch()
 }
 
 // NewClientByHost sets up a client by host
-func NewClientByHost(host string) *Client {
+func NewClientByHost(host string) Kubernetes {
 	tr := &http.Transport{
 		TLSClientConfig:    &tls.Config{},
 		DisableCompression: true,
@@ -39,19 +48,19 @@ func NewClientByHost(host string) *Client {
 		Transport: tr,
 	}
 
-	return &Client{
-		Config: &Config{
+	return &client{
+		opts: &api.Options{
+			Client:    c,
 			Host:      host,
 			Namespace: "default",
 		},
-		client: c,
 	}
 }
 
 // NewClientInCluster should work similarily to the official api
 // NewInClient by setting up a client configuration for use within
 // a k8s pod.
-func NewClientInCluster() *Client {
+func NewClientInCluster() Kubernetes {
 	host := "https://" + os.Getenv("KUBERNETES_SERVICE_HOST") + ":" + os.Getenv("KUBERNETES_SERVICE_PORT")
 	sa := "/var/run/secrets/kubernetes.io/serviceaccount"
 
@@ -67,6 +76,7 @@ func NewClientInCluster() *Client {
 	if err != nil {
 		log.Fatal(err)
 	}
+	t := string(token)
 
 	crt, err := CertPoolFromFile(path.Join(sa, "ca.crt"))
 	if err != nil {
@@ -82,73 +92,12 @@ func NewClientInCluster() *Client {
 		},
 	}
 
-	return &Client{
-		Config: &Config{
+	return &client{
+		opts: &api.Options{
+			Client:      c,
 			Host:        host,
 			Namespace:   "default",
-			BearerToken: string(token),
+			BearerToken: &t,
 		},
-		client: c,
 	}
-}
-
-// ServiceList is the top level item for the
-type ServiceList struct {
-	Items []Item `json:"items"`
-}
-
-// Item ...
-type Item struct {
-	Metadata Meta `json:"metadata"`
-}
-
-// Meta ...
-type Meta struct {
-	Name        string            `json:"name,omitempty"`
-	Annotations map[string]string `json:"annotations,omitempty"`
-}
-
-// Endpoints is the top level item for the /endpoints API
-type Endpoints struct {
-	Metadata Meta     `json:"metadata"`
-	Subsets  []Subset `json:"subsets"`
-}
-
-// PodList ...
-type PodList struct {
-	Items []Pod `json:"items"`
-}
-
-// Pod is the top level item for a pod
-type Pod struct {
-	Metadata Meta `json:"metadata"`
-}
-
-// Subset ...
-type Subset struct {
-	Addresses []Address `json:"addresses"`
-	Ports     []Port    `json:"ports"`
-}
-
-// Address ...
-type Address struct {
-	TargetRef ObjectRef `json:"targetRef"`
-	IP        string    `json:"ip"`
-}
-
-// ObjectRef ... used as part of the endpoint address to identify pod
-type ObjectRef struct {
-	Name string
-}
-
-// Port ...
-type Port struct {
-	Name string `json:"name"`
-	Port int    `json:"port"`
-}
-
-// Event ...
-type Event struct {
-	Type   string    `json:"type"`
-	Object Endpoints `json:"object"`
 }
