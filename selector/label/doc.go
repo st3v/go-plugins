@@ -1,3 +1,4 @@
+// Package label is a priority label based selector.
 package label
 
 /*
