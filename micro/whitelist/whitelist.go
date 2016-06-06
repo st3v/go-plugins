@@ -19,7 +19,7 @@ func (w *whitelist) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:   "rpc_whitelist",
 			Usage:  "Comma separated whitelist of allowed services for RPC calls",
-			EnvVar: "MICRO_RPC_WHITELIST",
+			EnvVar: "RPC_WHITELIST",
 		},
 	}
 }
