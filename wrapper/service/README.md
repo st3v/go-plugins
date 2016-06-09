@@ -33,3 +33,24 @@ func (e *Example) Handler(ctx context.Context, req *example.Request, rsp *exampl
 	return nil
 }
 ```
+
+And if you decide to wrap the client with some other wrapper it becomes accessible there too.
+
+```go
+type myWrapper struct {
+	client.Client
+}
+
+func (m *myWrapper) Call(ctx context.Context, req client.Request, rsp interface{}, opts ...client.CallOption) error {
+	service, ok = micro.FromContext(ctx)
+	if !ok {
+		return errors.InternalServerError("com.example.srv.foo.mywrapper", "Could not retrieve service")
+	}
+
+	// do something with the service
+	fmt.Println("Got service", service)
+
+	// now do some call
+	return c.Client.Call(ctx, req, rsp, opts...)
+}
+```
