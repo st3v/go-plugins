@@ -2,8 +2,12 @@ package eureka
 
 import (
 	"errors"
+	"net/http"
 	"testing"
 
+	"golang.org/x/net/context"
+
+	"github.com/hudl/fargo"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-plugins/registry/eureka/mock"
 )
@@ -55,5 +59,17 @@ func TestRegistration(t *testing.T) {
 				mockConn.HeartBeatInstanceCallCount(),
 			)
 		}
+	}
+}
+
+func TestSwitchHttpClient(t *testing.T) {
+	expected := new(http.Client)
+
+	NewRegistry(func(o *registry.Options) {
+		o.Context = context.WithValue(o.Context, contextHttpClient{}, expected)
+	})
+
+	if fargo.HttpClient != expected {
+		t.Errorf("Unexpected fargo.HttpClient: got %v, want %v", fargo.HttpClient, expected)
 	}
 }

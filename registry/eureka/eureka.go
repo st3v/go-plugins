@@ -5,7 +5,10 @@ package eureka
 */
 
 import (
+	"net/http"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/hudl/fargo"
 	"github.com/micro/go-micro/cmd"
@@ -34,7 +37,10 @@ func init() {
 }
 
 func newRegistry(opts ...registry.Option) registry.Registry {
-	var options registry.Options
+	options := registry.Options{
+		Context: context.Background(),
+	}
+
 	for _, o := range opts {
 		o(&options)
 	}
@@ -49,6 +55,10 @@ func newRegistry(opts ...registry.Option) registry.Registry {
 
 	if len(cAddrs) == 0 {
 		cAddrs = []string{"http://localhost:8080/eureka/v2"}
+	}
+
+	if c, ok := options.Context.Value(contextHttpClient{}).(*http.Client); ok {
+		fargo.HttpClient = c
 	}
 
 	conn := fargo.NewConn(cAddrs...)
