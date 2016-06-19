@@ -3,6 +3,7 @@ package eureka
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/hudl/fargo"
@@ -79,19 +80,23 @@ func serviceToInstance(service *registry.Service) (*fargo.Instance, error) {
 
 	instance := &fargo.Instance{
 		App:              service.Name,
+		HostName:         node.Address,
 		IPAddr:           node.Address,
 		VipAddress:       node.Address,
 		SecureVipAddress: node.Address,
 		Port:             node.Port,
 		Status:           fargo.UP,
 		UniqueID: func(i fargo.Instance) string {
-			return node.Id
+			return fmt.Sprintf("%s:%s", node.Address, node.Id)
 		},
 		DataCenterInfo: fargo.DataCenterInfo{Name: fargo.MyOwn},
 	}
 
 	// set version
 	instance.SetMetadataString("version", service.Version)
+
+	// set instance ID
+	instance.SetMetadataString("instanceId", node.Id)
 
 	// set endpoints
 	if b, err := json.Marshal(service.Endpoints); err == nil {
