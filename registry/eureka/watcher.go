@@ -9,12 +9,12 @@ import (
 )
 
 type eurekaWatcher struct {
-	conn    fargo.EurekaConnection
+	conn    fargoConnection
 	exit    chan bool
 	results chan *registry.Result
 }
 
-func newWatcher(conn fargo.EurekaConnection) registry.Watcher {
+func newWatcher(conn fargoConnection) registry.Watcher {
 	w := &eurekaWatcher{
 		conn:    conn,
 		exit:    make(chan bool),
