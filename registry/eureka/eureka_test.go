@@ -1,0 +1,59 @@
+package eureka
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/micro/go-micro/registry"
+	"github.com/micro/go-plugins/registry/eureka/mock"
+)
+
+func TestRegistration(t *testing.T) {
+	testData := []struct {
+		getInstanceErr       error
+		callCountGetInstance int
+		callCountRegister    int
+		callCountHeartbeat   int
+	}{
+		{errors.New("Instance not existing"), 1, 1, 0}, // initial register
+		{nil, 1, 0, 1},                                 // subsequent register
+	}
+
+	eureka := NewRegistry().(*eurekaRegistry)
+
+	service := &registry.Service{
+		Nodes: []*registry.Node{new(registry.Node)},
+	}
+
+	for _, test := range testData {
+		mockConn := new(mock.FargoConnection)
+		mockConn.GetInstanceReturns(nil, test.getInstanceErr)
+		eureka.conn = mockConn
+
+		eureka.Register(service)
+
+		if mockConn.GetInstanceCallCount() != test.callCountGetInstance {
+			t.Errorf(
+				"Expected exactly %d calls to GetInstance, got %d calls.",
+				test.callCountGetInstance,
+				mockConn.GetInstanceCallCount(),
+			)
+		}
+
+		if mockConn.RegisterInstanceCallCount() != test.callCountRegister {
+			t.Errorf(
+				"Expected exactly %d calls of RegisterInstance, got %d calls.",
+				test.callCountRegister,
+				mockConn.RegisterInstanceCallCount(),
+			)
+		}
+
+		if mockConn.HeartBeatInstanceCallCount() != test.callCountHeartbeat {
+			t.Errorf(
+				"Expected exactly %d calls of HeartBeatInstance, got %d calls.",
+				test.callCountHeartbeat,
+				mockConn.HeartBeatInstanceCallCount(),
+			)
+		}
+	}
+}

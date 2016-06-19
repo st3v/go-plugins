@@ -13,8 +13,18 @@ import (
 	"github.com/op/go-logging"
 )
 
+type fargoConnection interface {
+	RegisterInstance(*fargo.Instance) error
+	DeregisterInstance(*fargo.Instance) error
+	HeartBeatInstance(*fargo.Instance) error
+	GetInstance(string, string) (*fargo.Instance, error)
+	GetApp(string) (*fargo.Application, error)
+	GetApps() (map[string]*fargo.Application, error)
+	ScheduleAppUpdates(string, bool, <-chan struct{}) <-chan fargo.AppUpdate
+}
+
 type eurekaRegistry struct {
-	conn fargo.EurekaConnection
+	conn fargoConnection
 	opts registry.Options
 }
 
@@ -45,7 +55,7 @@ func newRegistry(opts ...registry.Option) registry.Registry {
 	conn.PollInterval = time.Second * 5
 
 	return &eurekaRegistry{
-		conn: conn,
+		conn: &conn,
 		opts: options,
 	}
 }
@@ -55,6 +65,11 @@ func (e *eurekaRegistry) Register(s *registry.Service, opts ...registry.Register
 	if err != nil {
 		return err
 	}
+
+	if e.instanceRegistered(instance) {
+		return e.conn.HeartBeatInstance(instance)
+	}
+
 	return e.conn.RegisterInstance(instance)
 }
 
@@ -95,6 +110,11 @@ func (e *eurekaRegistry) Watch() (registry.Watcher, error) {
 
 func (e *eurekaRegistry) String() string {
 	return "eureka"
+}
+
+func (e *eurekaRegistry) instanceRegistered(instance *fargo.Instance) bool {
+	_, err := e.conn.GetInstance(instance.App, instance.UniqueID(*instance))
+	return err == nil
 }
 
 func NewRegistry(opts ...registry.Option) registry.Registry {
