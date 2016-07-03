@@ -7,7 +7,7 @@ Check out the Micro on NATS blog post to learn more about plugins [https://blog.
 
 Contributions welcome! Join the community to discuss further.
 
-- [Mailing List](https://groups.google.com/forum/#!forum/micro-services) 
+- [Mailing List](https://groups.google.com/forum/#!forum/microhq) 
 - [Slack](https://micro-services.slack.com) : [auto-invite](http://micro-invites.herokuapp.com/)
 
 ## What's here?
