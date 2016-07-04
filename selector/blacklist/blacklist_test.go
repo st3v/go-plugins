@@ -12,7 +12,7 @@ import (
 func TestDefaultSelector(t *testing.T) {
 	counts := map[string]int{}
 
-	rs := newDefaultSelector(selector.Registry(mock.NewRegistry()))
+	rs := newSelector(selector.Registry(mock.NewRegistry()))
 
 	next, err := rs.Select("foo")
 	if err != nil {
@@ -56,7 +56,7 @@ func TestBlackList(t *testing.T) {
 		},
 	})
 
-	rs := newDefaultSelector(selector.Registry(r))
+	rs := newSelector(selector.Registry(r))
 
 	next, err := rs.Select("test")
 	if err != nil {

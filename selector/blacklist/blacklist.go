@@ -86,7 +86,7 @@ func (r *blacklistSelector) String() string {
 	return "blacklist"
 }
 
-func newDefaultSelector(opts ...selector.Option) selector.Selector {
+func newSelector(opts ...selector.Option) selector.Selector {
 	sopts := selector.Options{
 		Strategy: selector.Random,
 	}
@@ -104,4 +104,8 @@ func newDefaultSelector(opts ...selector.Option) selector.Selector {
 		exit: make(chan bool),
 		bl:   newBlacklist(),
 	}
+}
+
+func NewSelector(opts ...selector.Option) selector.Selector {
+	return newSelector(opts...)
 }
