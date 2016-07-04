@@ -31,6 +31,7 @@ var (
 	WatchTopic = "micro.registry.nats.watch"
 
 	DefaultTimeout = time.Millisecond * 100
+	DefaultQuorum  = 1
 )
 
 func newConn(addrs []string, secure bool, config *tls.Config) (*nats.Conn, error) {
@@ -173,7 +174,7 @@ func (n *natsRegistry) deregister(s *registry.Service) error {
 	return nil
 }
 
-func (n *natsRegistry) query(s string) ([]*registry.Service, error) {
+func (n *natsRegistry) query(s string, quorum int) ([]*registry.Service, error) {
 	conn, err := n.getConn()
 	if err != nil {
 		return nil, err
@@ -221,12 +222,7 @@ func (n *natsRegistry) query(s string) ([]*registry.Service, error) {
 		return nil, err
 	}
 
-	done := make(chan bool)
-
-	go func() {
-		<-time.After(n.opts.Timeout)
-		close(done)
-	}()
+	timeoutChan := time.After(n.opts.Timeout)
 
 	serviceMap := make(map[string]*registry.Service)
 
@@ -236,13 +232,18 @@ loop:
 		case service := <-response:
 			key := service.Name + "-" + service.Version
 			srv, ok := serviceMap[key]
-			if !ok {
+			if ok {
+				srv.Nodes = append(srv.Nodes, service.Nodes...)
+				serviceMap[key] = srv
+			} else {
 				serviceMap[key] = service
-				continue
 			}
-			srv.Nodes = append(srv.Nodes, service.Nodes...)
-			serviceMap[key] = srv
-		case <-done:
+
+			// log.Printf("nodes %d", len(serviceMap[key].Nodes))
+			if quorum > 0 && len(serviceMap[key].Nodes) >= quorum {
+				break loop
+			}
+		case <-timeoutChan:
 			break loop
 		}
 	}
@@ -290,7 +291,7 @@ func (n *natsRegistry) Deregister(s *registry.Service) error {
 }
 
 func (n *natsRegistry) GetService(s string) ([]*registry.Service, error) {
-	services, err := n.query(s)
+	services, err := n.query(s, n.opts.Quorum)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +299,7 @@ func (n *natsRegistry) GetService(s string) ([]*registry.Service, error) {
 }
 
 func (n *natsRegistry) ListServices() ([]*registry.Service, error) {
-	s, err := n.query("")
+	s, err := n.query("", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -338,6 +339,7 @@ func (n *natsRegistry) String() string {
 func NewRegistry(opts ...registry.Option) registry.Registry {
 	options := registry.Options{
 		Timeout: DefaultTimeout,
+		Quorum:  DefaultQuorum,
 	}
 	for _, o := range opts {
 		o(&options)
