@@ -34,9 +34,9 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 	e.address = *address
 
-	e.registryOne = nats.NewRegistry(registry.Addrs(e.address))
-	e.registryTwo = nats.NewRegistry(registry.Addrs(e.address))
-	e.registryThree = nats.NewRegistry(registry.Addrs(e.address))
+	e.registryOne = nats.NewRegistry(registry.Addrs(e.address), nats.Quorum(1))
+	e.registryTwo = nats.NewRegistry(registry.Addrs(e.address), nats.Quorum(1))
+	e.registryThree = nats.NewRegistry(registry.Addrs(e.address), nats.Quorum(1))
 
 	e.serviceOne.Name = "one"
 	e.serviceOne.Version = "default"

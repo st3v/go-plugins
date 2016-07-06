@@ -31,7 +31,6 @@ var (
 	WatchTopic = "micro.registry.nats.watch"
 
 	DefaultTimeout = time.Millisecond * 100
-	DefaultQuorum  = 1
 )
 
 func newConn(addrs []string, secure bool, config *tls.Config) (*nats.Conn, error) {
@@ -291,7 +290,7 @@ func (n *natsRegistry) Deregister(s *registry.Service) error {
 }
 
 func (n *natsRegistry) GetService(s string) ([]*registry.Service, error) {
-	services, err := n.query(s, n.opts.Quorum)
+	services, err := n.query(s, GetQuorum(&n.opts))
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +338,6 @@ func (n *natsRegistry) String() string {
 func NewRegistry(opts ...registry.Option) registry.Registry {
 	options := registry.Options{
 		Timeout: DefaultTimeout,
-		Quorum:  DefaultQuorum,
 	}
 	for _, o := range opts {
 		o(&options)
