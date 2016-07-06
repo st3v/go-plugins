@@ -1,7 +1,6 @@
 package nats_test
 
 import (
-	"flag"
 	"log"
 	"os"
 	"testing"
@@ -11,8 +10,6 @@ import (
 )
 
 type environment struct {
-	address string
-
 	registryOne   registry.Registry
 	registryTwo   registry.Registry
 	registryThree registry.Registry
@@ -28,15 +25,15 @@ type environment struct {
 var e environment
 
 func TestMain(m *testing.M) {
-	var (
-		address = flag.String("url", "nats://localhost:4222", "url to nats server")
-	)
-	flag.Parse()
-	e.address = *address
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		log.Printf("NATS_URL is undefined - skipping tests")
+		return
+	}
 
-	e.registryOne = nats.NewRegistry(registry.Addrs(e.address), nats.Quorum(1))
-	e.registryTwo = nats.NewRegistry(registry.Addrs(e.address), nats.Quorum(1))
-	e.registryThree = nats.NewRegistry(registry.Addrs(e.address), nats.Quorum(1))
+	e.registryOne = nats.NewRegistry(registry.Addrs(natsURL), nats.Quorum(1))
+	e.registryTwo = nats.NewRegistry(registry.Addrs(natsURL), nats.Quorum(1))
+	e.registryThree = nats.NewRegistry(registry.Addrs(natsURL), nats.Quorum(1))
 
 	e.serviceOne.Name = "one"
 	e.serviceOne.Version = "default"
