@@ -15,7 +15,7 @@ func Quorum(n int) registry.Option {
 	}
 }
 
-func GetQuorum(o *registry.Options) int {
+func getQuorum(o registry.Options) int {
 	if o.Context == nil {
 		return DefaultQuorum
 	}

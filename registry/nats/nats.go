@@ -238,7 +238,6 @@ loop:
 				serviceMap[key] = service
 			}
 
-			// log.Printf("nodes %d", len(serviceMap[key].Nodes))
 			if quorum > 0 && len(serviceMap[key].Nodes) >= quorum {
 				break loop
 			}
@@ -290,7 +289,7 @@ func (n *natsRegistry) Deregister(s *registry.Service) error {
 }
 
 func (n *natsRegistry) GetService(s string) ([]*registry.Service, error) {
-	services, err := n.query(s, GetQuorum(&n.opts))
+	services, err := n.query(s, getQuorum(n.opts))
 	if err != nil {
 		return nil, err
 	}
