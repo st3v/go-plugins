@@ -1,0 +1,418 @@
+package grpc
+
+import (
+	"bytes"
+	errs "errors"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/micro/go-micro/broker"
+	"github.com/micro/go-micro/client"
+	"github.com/micro/go-micro/codec"
+	errors "github.com/micro/go-micro/errors"
+	"github.com/micro/go-micro/metadata"
+	"github.com/micro/go-micro/selector"
+
+	"google.golang.org/grpc"
+	gmetadata "google.golang.org/grpc/metadata"
+
+	"golang.org/x/net/context"
+)
+
+type grpcClient struct {
+	once sync.Once
+	opts client.Options
+}
+
+var (
+	errShutdown = errs.New("connection is shut down")
+)
+
+func (g *grpcClient) call(ctx context.Context, address string, req client.Request, rsp interface{}, opts client.CallOptions) error {
+	header := make(map[string]string)
+	if md, ok := metadata.FromContext(ctx); ok {
+		for k, v := range md {
+			header[k] = v
+		}
+	}
+
+	// set timeout in nanoseconds
+	header["Timeout"] = fmt.Sprintf("%d", opts.RequestTimeout)
+	// set the content type for the request
+	header["Content-Type"] = req.ContentType()
+
+	md := gmetadata.New(header)
+
+	cf, err := g.newGRPCCodec(req.ContentType())
+	if err != nil {
+		return errors.InternalServerError("go.micro.client", err.Error())
+	}
+
+	var grr error
+	cc, err := grpc.Dial(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout))
+	if err != nil {
+		return errors.InternalServerError("go.micro.client", fmt.Sprintf("Error sending request: %v", err))
+	}
+	defer cc.Close()
+
+	ch := make(chan error, 1)
+
+	go func() {
+		ch <- grpc.Invoke(ctx, req.Method(), req.Request(), rsp, cc, grpc.Header(&md))
+	}()
+
+	select {
+	case err := <-ch:
+		grr = err
+		return err
+	case <-ctx.Done():
+		grr = ctx.Err()
+		return errors.New("go.micro.client", fmt.Sprintf("%v", ctx.Err()), 408)
+	}
+
+	return grr
+}
+
+func (g *grpcClient) stream(ctx context.Context, address string, req client.Request, opts client.CallOptions) (client.Streamer, error) {
+	header := make(map[string]string)
+	if md, ok := metadata.FromContext(ctx); ok {
+		for k, v := range md {
+			header[k] = v
+		}
+	}
+
+	// set timeout in nanoseconds
+	header["Timeout"] = fmt.Sprintf("%d", opts.RequestTimeout)
+	// set the content type for the request
+	header["Content-Type"] = req.ContentType()
+
+	md := gmetadata.New(header)
+
+	cf, err := g.newGRPCCodec(req.ContentType())
+	if err != nil {
+		return nil, errors.InternalServerError("go.micro.client", err.Error())
+	}
+
+	cc, err := grpc.Dial(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout))
+	if err != nil {
+		return nil, errors.InternalServerError("go.micro.client", fmt.Sprintf("Error sending request: %v", err))
+	}
+
+	desc := &grpc.StreamDesc{
+		StreamName:    req.Service() + req.Method(),
+		ClientStreams: true,
+		ServerStreams: true,
+	}
+
+	st, err := grpc.NewClientStream(ctx, desc, cc, req.Method(), grpc.Header(&md))
+	if err != nil {
+		return nil, errors.InternalServerError("go.micro.client", fmt.Sprintf("Error creating stream: %v", err))
+	}
+
+	return &grpcStream{
+		context: ctx,
+		request: req,
+		closed:  make(chan bool),
+		stream:  st,
+		conn:    cc,
+	}, nil
+}
+
+func (g *grpcClient) newGRPCCodec(contentType string) (grpc.Codec, error) {
+	if c, ok := defaultGRPCCodecs[contentType]; ok {
+		return c, nil
+	}
+	return nil, fmt.Errorf("Unsupported Content-Type: %s", contentType)
+}
+
+func (g *grpcClient) newCodec(contentType string) (codec.NewCodec, error) {
+	if c, ok := g.opts.Codecs[contentType]; ok {
+		return c, nil
+	}
+	if cf, ok := defaultRPCCodecs[contentType]; ok {
+		return cf, nil
+	}
+	return nil, fmt.Errorf("Unsupported Content-Type: %s", contentType)
+}
+
+func (g *grpcClient) Init(opts ...client.Option) error {
+	for _, o := range opts {
+		o(&g.opts)
+	}
+	return nil
+}
+
+func (g *grpcClient) Options() client.Options {
+	return g.opts
+}
+
+func (g *grpcClient) NewPublication(topic string, msg interface{}) client.Publication {
+	return newGRPCPublication(topic, msg, "application/octet-stream")
+}
+
+func (g *grpcClient) NewRequest(service, method string, req interface{}, reqOpts ...client.RequestOption) client.Request {
+	return newGRPCRequest(service, method, req, g.opts.ContentType, reqOpts...)
+}
+
+func (g *grpcClient) NewProtoRequest(service, method string, req interface{}, reqOpts ...client.RequestOption) client.Request {
+	return newGRPCRequest(service, method, req, "application/grpc+proto", reqOpts...)
+}
+
+func (g *grpcClient) NewJsonRequest(service, method string, req interface{}, reqOpts ...client.RequestOption) client.Request {
+	return newGRPCRequest(service, method, req, "application/grpc+json", reqOpts...)
+}
+
+func (g *grpcClient) Call(ctx context.Context, req client.Request, rsp interface{}, opts ...client.CallOption) error {
+	// make a copy of call opts
+	callOpts := g.opts.CallOptions
+	for _, opt := range opts {
+		opt(&callOpts)
+	}
+
+	// get next nodes from the selector
+	next, err := g.opts.Selector.Select(req.Service(), callOpts.SelectOptions...)
+	if err != nil && err == selector.ErrNotFound {
+		return errors.NotFound("go.micro.client", err.Error())
+	} else if err != nil {
+		return errors.InternalServerError("go.micro.client", err.Error())
+	}
+
+	// check if we already have a deadline
+	d, ok := ctx.Deadline()
+	if !ok {
+		// no deadline so we create a new one
+		ctx, _ = context.WithTimeout(ctx, callOpts.RequestTimeout)
+	} else {
+		// got a deadline so no need to setup context
+		// but we need to set the timeout we pass along
+		opt := client.WithRequestTimeout(d.Sub(time.Now()))
+		opt(&callOpts)
+	}
+
+	// should we noop right here?
+	select {
+	case <-ctx.Done():
+		return errors.New("go.micro.client", fmt.Sprintf("%v", ctx.Err()), 408)
+	default:
+	}
+
+	// return errors.New("go.micro.client", "request timeout", 408)
+	call := func(i int) error {
+		// call backoff first. Someone may want an initial start delay
+		t, err := callOpts.Backoff(ctx, req, i)
+		if err != nil {
+			return errors.InternalServerError("go.micro.client", err.Error())
+		}
+
+		// only sleep if greater than 0
+		if t.Seconds() > 0 {
+			time.Sleep(t)
+		}
+
+		// select next node
+		node, err := next()
+		if err != nil && err == selector.ErrNotFound {
+			return errors.NotFound("go.micro.client", err.Error())
+		} else if err != nil {
+			return errors.InternalServerError("go.micro.client", err.Error())
+		}
+
+		// set the address
+		addr := node.Address
+		if node.Port > 0 {
+			addr = fmt.Sprintf("%s:%d", addr, node.Port)
+		}
+
+		// make the call
+		err = g.call(ctx, addr, req, rsp, callOpts)
+		g.opts.Selector.Mark(req.Service(), node, err)
+		return err
+	}
+
+	ch := make(chan error, callOpts.Retries)
+	var gerr error
+
+	for i := 0; i < callOpts.Retries; i++ {
+		go func() {
+			ch <- call(i)
+		}()
+
+		select {
+		case <-ctx.Done():
+			return errors.New("go.micro.client", fmt.Sprintf("%v", ctx.Err()), 408)
+		case err := <-ch:
+			// if the call succeeded lets bail early
+			if err == nil {
+				return nil
+			}
+			gerr = err
+		}
+	}
+
+	return gerr
+}
+
+func (g *grpcClient) CallRemote(ctx context.Context, addr string, req client.Request, rsp interface{}, opts ...client.CallOption) error {
+	callOpts := g.opts.CallOptions
+	for _, opt := range opts {
+		opt(&callOpts)
+	}
+	return g.call(ctx, addr, req, rsp, callOpts)
+}
+
+func (g *grpcClient) Stream(ctx context.Context, req client.Request, opts ...client.CallOption) (client.Streamer, error) {
+	// make a copy of call opts
+	callOpts := g.opts.CallOptions
+	for _, opt := range opts {
+		opt(&callOpts)
+	}
+
+	// get next nodes from the selector
+	next, err := g.opts.Selector.Select(req.Service(), callOpts.SelectOptions...)
+	if err != nil && err == selector.ErrNotFound {
+		return nil, errors.NotFound("go.micro.client", err.Error())
+	} else if err != nil {
+		return nil, errors.InternalServerError("go.micro.client", err.Error())
+	}
+
+	// check if we already have a deadline
+	d, ok := ctx.Deadline()
+	if !ok {
+		// no deadline so we create a new one
+		ctx, _ = context.WithTimeout(ctx, callOpts.RequestTimeout)
+	} else {
+		// got a deadline so no need to setup context
+		// but we need to set the timeout we pass along
+		opt := client.WithRequestTimeout(d.Sub(time.Now()))
+		opt(&callOpts)
+	}
+
+	// should we noop right here?
+	select {
+	case <-ctx.Done():
+		return nil, errors.New("go.micro.client", fmt.Sprintf("%v", ctx.Err()), 408)
+	default:
+	}
+
+	call := func(i int) (client.Streamer, error) {
+		// call backoff first. Someone may want an initial start delay
+		t, err := callOpts.Backoff(ctx, req, i)
+		if err != nil {
+			return nil, errors.InternalServerError("go.micro.client", err.Error())
+		}
+
+		// only sleep if greater than 0
+		if t.Seconds() > 0 {
+			time.Sleep(t)
+		}
+
+		node, err := next()
+		if err != nil && err == selector.ErrNotFound {
+			return nil, errors.NotFound("go.micro.client", err.Error())
+		} else if err != nil {
+			return nil, errors.InternalServerError("go.micro.client", err.Error())
+		}
+
+		addr := node.Address
+		if node.Port > 0 {
+			addr = fmt.Sprintf("%s:%d", addr, node.Port)
+		}
+
+		stream, err := g.stream(ctx, addr, req, callOpts)
+		g.opts.Selector.Mark(req.Service(), node, err)
+		return stream, err
+	}
+
+	type response struct {
+		stream client.Streamer
+		err    error
+	}
+
+	ch := make(chan response, callOpts.Retries)
+	var grr error
+
+	for i := 0; i < callOpts.Retries; i++ {
+		go func() {
+			s, err := call(i)
+			ch <- response{s, err}
+		}()
+
+		select {
+		case <-ctx.Done():
+			return nil, errors.New("go.micro.client", fmt.Sprintf("%v", ctx.Err()), 408)
+		case rsp := <-ch:
+			// if the call succeeded lets bail early
+			if rsp.err == nil {
+				return rsp.stream, nil
+			}
+			grr = rsp.err
+		}
+	}
+
+	return nil, grr
+}
+
+func (g *grpcClient) StreamRemote(ctx context.Context, addr string, req client.Request, opts ...client.CallOption) (client.Streamer, error) {
+	callOpts := g.opts.CallOptions
+	for _, opt := range opts {
+		opt(&callOpts)
+	}
+	return g.stream(ctx, addr, req, callOpts)
+}
+
+func (g *grpcClient) Publish(ctx context.Context, p client.Publication, opts ...client.PublishOption) error {
+	md, ok := metadata.FromContext(ctx)
+	if !ok {
+		md = make(map[string]string)
+	}
+	md["Content-Type"] = p.ContentType()
+
+	cf, err := g.newCodec(p.ContentType())
+	if err != nil {
+		return errors.InternalServerError("go.micro.client", err.Error())
+	}
+
+	b := &buffer{bytes.NewBuffer(nil)}
+	if err := cf(b).Write(&codec.Message{Type: codec.Publication}, p.Message()); err != nil {
+		return errors.InternalServerError("go.micro.client", err.Error())
+	}
+
+	g.once.Do(func() {
+		g.opts.Broker.Connect()
+	})
+
+	return g.opts.Broker.Publish(p.Topic(), &broker.Message{
+		Header: md,
+		Body:   b.Bytes(),
+	})
+}
+
+func (g *grpcClient) String() string {
+	return "grpc"
+}
+
+func newClient(opts ...client.Option) client.Client {
+	var options client.Options
+	for _, o := range opts {
+		o(&options)
+	}
+
+	rc := &grpcClient{
+		once: sync.Once{},
+		opts: options,
+	}
+
+	c := client.Client(rc)
+
+	// wrap in reverse
+	for i := len(options.Wrappers); i > 0; i-- {
+		c = options.Wrappers[i-1](c)
+	}
+
+	return c
+}
+
+func NewClient(opts ...client.Option) client.Client {
+	return newClient(opts...)
+}
