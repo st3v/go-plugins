@@ -1,15 +1,18 @@
 package geocode
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 )
 
 func TestGeocode(t *testing.T) {
 	testData := []struct {
 		address  string
-		response string
+		response [2]string
 	}{
-		{"somerset house", "51.511028,-0.117194"},
+		{"somerset house", [2]string{"51.51", "-0.12"}},
 	}
 
 	command := Geocode()
@@ -20,8 +23,18 @@ func TestGeocode(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if string(rsp) != d.response {
-			t.Fatalf("Expected %s got %s", d.response, string(rsp))
+		parts := strings.Split(string(rsp), ",")
+		if len(parts) != 2 {
+			t.Fatal("Expected 2 parts, got %v", parts)
+		}
+
+		flat, _ := strconv.ParseFloat(parts[0], 64)
+		flng, _ := strconv.ParseFloat(parts[1], 64)
+		lat := fmt.Sprintf("%.2f", flat)
+		lng := fmt.Sprintf("%.2f", flng)
+
+		if (lat != d.response[0]) || (lng != d.response[1]) {
+			t.Fatalf("Expected %v got %s,%s", d.response, lat, lng)
 
 		}
 	}
