@@ -176,7 +176,17 @@ func NewRouter(opts ...Option) plugin.Plugin {
 	for _, o := range opts {
 		o(&options)
 	}
-	return &router{
+
+	r := &router{
 		opts: options,
 	}
+
+	if options.Config != nil {
+		var routes Routes
+		if err := options.Config.Get(DefaultPath...).Scan(&routes); err == nil {
+			r.update(routes)
+		}
+	}
+
+	return r
 }
