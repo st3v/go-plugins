@@ -21,4 +21,41 @@ func init() {
 }
 ```
 
+## Routes
 
+Routes are used to config request to match and the response to return. Here's an example.
+
+```json
+{
+	"api": {
+		"routes": [
+			{
+				"request": {
+					"method": "GET",
+					"host": "127.0.0.1:10001",
+					"path": "/"
+				},
+				"response": {
+					"status_code": 302,
+					"header": {
+						"location": "http://example.com"
+					}
+				}
+			},
+			{
+				"request": {
+					"method": "POST",
+					"host": "127.0.0.1:10001",
+					"path": "/foo"
+				},
+				"response": {
+					"status_code": 301,
+					"header": {
+						"location": "http://foo.bar.com"
+					}
+				}
+			}
+		]
+	}
+}
+```
