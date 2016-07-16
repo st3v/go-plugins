@@ -4,6 +4,19 @@ The router plugin is a HTTP handler plugin for the Micro API which enables you t
 dynamic configuration that can then be leveraged via anything that implements the go-platform/config interface e.g file, etcd, consul 
 or the config service.
 
+## Features
+
+- Request Matching
+- Weighted Routing
+- Reverse Proxying
+- Priority Rules
+- Configurable via go-platform/Config
+- Pluggable via micro/plugins
+
+## TODO
+
+- Regex Matching Host/Path
+
 ## Usage
 
 Register the plugin before building Micro
