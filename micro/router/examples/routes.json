@@ -12,7 +12,8 @@
 					"header": {
 						"location": "http://example.com"
 					}
-				}
+				},
+				"weight": 1.0
 			},
 			{
 				"request": {
@@ -25,7 +26,8 @@
 					"header": {
 						"location": "http://foo.bar.com"
 					}
-				}
+				},
+				"weight": 1.0
 			}
 		]
 	}

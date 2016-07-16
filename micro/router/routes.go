@@ -18,7 +18,7 @@ type Route struct {
 	Request  Request  `json:"request"`
 	Response Response `json:"response"`
 	Priority int      `json:"priority"` // 0 is highest. Used for ordering routes
-	// TODO: Weight
+	Weight   float64  `json:"weight"`   // percentage weight between 0 and 1.0
 	// TODO: Type: Proxy, Default
 }
 
@@ -76,6 +76,12 @@ func (r Route) Match(req *http.Request) bool {
 		if rv := vals.Get(k); rv != v {
 			return false
 		}
+	}
+
+	// Now weight it. If already set to 0.0 then return
+	// Otherwise rand.Float64
+	if r.Weight == 0.0 || r.Weight < rand.Float64() {
+		return false
 	}
 
 	// we got a match!

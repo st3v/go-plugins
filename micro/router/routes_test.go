@@ -20,6 +20,7 @@ func TestRoutes(t *testing.T) {
 						Host:   "example.com",
 						Path:   "/",
 					},
+					Weight: 1.0,
 				},
 				{
 					Request: Request{
@@ -27,6 +28,7 @@ func TestRoutes(t *testing.T) {
 						Host:   "foo.com",
 						Path:   "/bar",
 					},
+					Weight: 1.0,
 				},
 			},
 			Req: &http.Request{
@@ -46,6 +48,7 @@ func TestRoutes(t *testing.T) {
 						Host:   "example.com",
 						Path:   "/",
 					},
+					Weight: 1.0,
 				},
 				{
 					Request: Request{
@@ -53,6 +56,7 @@ func TestRoutes(t *testing.T) {
 						Host:   "foo.com",
 						Path:   "/bar",
 					},
+					Weight: 1.0,
 				},
 			},
 			Req: &http.Request{
@@ -77,7 +81,7 @@ func TestRoutes(t *testing.T) {
 		}
 
 		if match != d.Match {
-			t.Fatal("Expected match %t got %t", d.Match, match)
+			t.Fatalf("Expected match %t got %t", d.Match, match)
 		}
 	}
 }

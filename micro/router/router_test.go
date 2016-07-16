@@ -33,6 +33,7 @@ func TestRouter(t *testing.T) {
 					"Location": "http://example.com",
 				},
 			},
+			Weight: 1.0,
 		},
 		{
 			Request: Request{
@@ -46,6 +47,7 @@ func TestRouter(t *testing.T) {
 					"Location": "http://foo.bar.com",
 				},
 			},
+			Weight: 1.0,
 		},
 	}
 

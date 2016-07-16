@@ -64,7 +64,8 @@ Routes are used to config request to match and the response to return. Here's an
 					"header": {
 						"location": "http://example.com"
 					}
-				}
+				},
+				"weight": 1.0
 			},
 			{
 				"request": {
@@ -77,7 +78,8 @@ Routes are used to config request to match and the response to return. Here's an
 					"header": {
 						"location": "http://foo.bar.com"
 					}
-				}
+				},
+				"weight": 1.0
 			}
 		]
 	}
