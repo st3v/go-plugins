@@ -49,6 +49,20 @@ func TestRouter(t *testing.T) {
 			},
 			Weight: 1.0,
 		},
+		{
+			Request: Request{
+				Method: "GET",
+				Host:   l.Addr().String(),
+				Path:   "/foobar",
+			},
+			ProxyURL: URL{
+				Scheme: "http",
+				Host:   "www.foo.com",
+				Path:   "/",
+			},
+			Weight: 1.0,
+			Type:   "proxy",
+		},
 	}
 
 	apiConfig := map[string]interface{}{
@@ -96,6 +110,13 @@ func TestRouter(t *testing.T) {
 			} else {
 				t.Fatal(err)
 			}
+		}
+
+		if route.Type == "proxy" {
+			if rsp.StatusCode >= 400 {
+				t.Fatalf("Expected healthy response got %d", rsp.StatusCode)
+			}
+			continue
 		}
 
 		if rsp.StatusCode != route.Response.StatusCode {

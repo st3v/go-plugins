@@ -28,6 +28,20 @@
 					}
 				},
 				"weight": 1.0
+			},
+			{
+				"request": {
+					"method": "GET",
+					"host": "127.0.0.1:10001",
+					"path": "/foobar"
+				},
+				"proxy_url": {
+					"scheme": "http",
+					"host": "www.google.com",
+					"path": "/"
+				},
+				"weight": 1.0,
+				"type": "proxy"
 			}
 		]
 	}

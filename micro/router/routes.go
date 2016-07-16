@@ -3,6 +3,7 @@ package router
 import (
 	"math/rand"
 	"net/http"
+	"net/http/httputil"
 	"time"
 )
 
@@ -17,9 +18,10 @@ type Routes struct {
 type Route struct {
 	Request  Request  `json:"request"`
 	Response Response `json:"response"`
+	ProxyURL URL      `json:"proxy_url"`
 	Priority int      `json:"priority"` // 0 is highest. Used for ordering routes
 	Weight   float64  `json:"weight"`   // percentage weight between 0 and 1.0
-	// TODO: Type: Proxy, Default
+	Type     string   `json:"type"`     // proxy or response. Response is default
 }
 
 // Request describes the expected request and will
@@ -39,6 +41,12 @@ type Response struct {
 	StatusCode int               `json:"status_code"`
 	Header     map[string]string `json:"header"`
 	Body       []byte            `json:"body"`
+}
+
+type URL struct {
+	Scheme string `json:"scheme"`
+	Host   string `json:"host"`
+	Path   string `json:"path"`
 }
 
 func init() {
@@ -89,6 +97,22 @@ func (r Route) Match(req *http.Request) bool {
 }
 
 func (r Route) Write(w http.ResponseWriter, req *http.Request) {
+	// Type: proxy then proxy the request to whatever response is
+	if r.Type == "proxy" {
+		p := &httputil.ReverseProxy{
+			Director: func(rr *http.Request) {
+				rr.URL.Host = r.ProxyURL.Host
+				rr.URL.Scheme = r.ProxyURL.Scheme
+				rr.URL.Path = r.ProxyURL.Path
+				rr.Host = r.ProxyURL.Host
+			},
+		}
+		p.ServeHTTP(w, req)
+		return
+	}
+
+	// Type: response or none then set the response
+
 	// set headers
 	for k, v := range r.Response.Header {
 		w.Header().Set(k, v)
