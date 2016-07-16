@@ -25,7 +25,7 @@ type Route struct {
 // Request describes the expected request and will
 // attempt to match all fields specified
 type Request struct {
-	Method string            `json:"string"`
+	Method string            `json:"method"`
 	Header map[string]string `json:"header"`
 	Host   string            `json:"host"`
 	Path   string            `json:"path"`
