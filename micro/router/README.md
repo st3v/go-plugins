@@ -8,7 +8,7 @@ or the config service.
 
 Register the plugin before building Micro
 
-```
+```go
 package main
 
 import (
@@ -19,6 +19,30 @@ import (
 func init() {
 	plugin.Register(router.NewRouter())
 }
+```
+
+## Config
+
+Configuring the router is done via a go-platform/Config source. Here's an example using the File source.
+
+```go
+// Create Config Source
+f := file.NewSource(
+	// Use routes.json file
+	config.SourceName("routes.json"),
+)
+
+// Create Config
+c := config.NewConfig(
+	// With Source
+	config.WithSource(f),
+)
+
+// Create Router
+r := router.NewRouter(
+	// With Config
+	router.Config(c),
+)
 ```
 
 ## Routes
