@@ -74,9 +74,11 @@ func (s *subscriber) recv() {
 				break
 			}
 
-			// Handle error? Retry?
-			if err := p.Ack(); err != nil {
-				break
+			// Added for posterity, however Ack is a no-op.
+			if s.opts.AutoAck {
+				if err := p.Ack(); err != nil {
+					break
+				}
 			}
 
 		case redis.Subscription:
