@@ -6,6 +6,7 @@ package rabbitmq
 
 import (
 	"crypto/tls"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,9 @@ import (
 var (
 	DefaultExchange  = "micro"
 	DefaultRabbitURL = "amqp://guest:guest@127.0.0.1:5672"
+
+	dial    = amqp.Dial
+	dialTLS = amqp.DialTLS
 )
 
 type rabbitMQConn struct {
@@ -36,7 +40,7 @@ type rabbitMQConn struct {
 func newRabbitMQConn(exchange string, urls []string) *rabbitMQConn {
 	var url string
 
-	if len(urls) > 0 && strings.HasPrefix(urls[0], "amqp://") {
+	if len(urls) > 0 && regexp.MustCompile("^amqp(s)?://.*").MatchString(urls[0]) {
 		url = urls[0]
 	} else {
 		url = DefaultRabbitURL
@@ -104,7 +108,7 @@ func (r *rabbitMQConn) Close() {
 func (r *rabbitMQConn) tryToConnect(secure bool, config *tls.Config) error {
 	var err error
 
-	if secure || config != nil {
+	if secure || config != nil || strings.HasPrefix(r.url, "amqps://") {
 		if config == nil {
 			config = &tls.Config{
 				InsecureSkipVerify: true,
@@ -112,9 +116,9 @@ func (r *rabbitMQConn) tryToConnect(secure bool, config *tls.Config) error {
 		}
 
 		url := strings.Replace(r.url, "amqp://", "amqps://", 1)
-		r.Connection, err = amqp.DialTLS(url, config)
+		r.Connection, err = dialTLS(url, config)
 	} else {
-		r.Connection, err = amqp.Dial(r.url)
+		r.Connection, err = dial(r.url)
 	}
 
 	if err != nil {
