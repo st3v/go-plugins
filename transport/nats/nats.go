@@ -23,6 +23,7 @@ type ntportClient struct {
 	addr string
 	id   string
 	sub  *nats.Subscription
+	opts transport.Options
 }
 
 type ntportSocket struct {
@@ -30,11 +31,12 @@ type ntportSocket struct {
 	m    *nats.Msg
 	r    chan *nats.Msg
 
-	once  sync.Once
 	close chan bool
 
 	sync.Mutex
 	bl []*nats.Msg
+
+	opts transport.Options
 }
 
 type ntportListener struct {
@@ -44,7 +46,13 @@ type ntportListener struct {
 
 	sync.RWMutex
 	so map[string]*ntportSocket
+
+	opts transport.Options
 }
+
+var (
+	DefaultDeadline = time.Minute
+)
 
 func init() {
 	cmd.DefaultTransports["nats"] = NewTransport
@@ -56,11 +64,33 @@ func (n *ntportClient) Send(m *transport.Message) error {
 		return err
 	}
 
-	return n.conn.PublishRequest(n.addr, n.id, b)
+	// no deadline
+	if n.opts.Deadline == time.Duration(0) {
+		return n.conn.PublishRequest(n.addr, n.id, b)
+	}
+
+	// use the deadline
+	ch := make(chan error, 1)
+
+	go func() {
+		ch <- n.conn.PublishRequest(n.addr, n.id, b)
+	}()
+
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(n.opts.Deadline):
+		return errors.New("deadline exceeded")
+	}
 }
 
 func (n *ntportClient) Recv(m *transport.Message) error {
-	rsp, err := n.sub.NextMsg(time.Second * 10)
+	timeout := time.Second * 10
+	if n.opts.Deadline > time.Duration(0) {
+		timeout = n.opts.Deadline
+	}
+
+	rsp, err := n.sub.NextMsg(timeout)
 	if err != nil {
 		return err
 	}
@@ -85,10 +115,24 @@ func (n *ntportSocket) Recv(m *transport.Message) error {
 		return errors.New("message passed in is nil")
 	}
 
-	r, ok := <-n.r
+	var r *nats.Msg
+	var ok bool
+
+	// if there's a deadline we use it
+	if n.opts.Deadline > time.Duration(0) {
+		select {
+		case r, ok = <-n.r:
+		case <-time.After(n.opts.Deadline):
+			return errors.New("deadline exceeded")
+		}
+	} else {
+		r, ok = <-n.r
+	}
+
 	if !ok {
 		return io.EOF
 	}
+
 	n.Lock()
 	if len(n.bl) > 0 {
 		select {
@@ -110,13 +154,34 @@ func (n *ntportSocket) Send(m *transport.Message) error {
 	if err != nil {
 		return err
 	}
-	return n.conn.Publish(n.m.Reply, b)
+
+	// no deadline
+	if n.opts.Deadline == time.Duration(0) {
+		return n.conn.Publish(n.m.Reply, b)
+	}
+
+	// use the deadline
+	ch := make(chan error, 1)
+
+	go func() {
+		ch <- n.conn.Publish(n.m.Reply, b)
+	}()
+
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(n.opts.Deadline):
+		return errors.New("deadline exceeded")
+	}
 }
 
 func (n *ntportSocket) Close() error {
-	n.once.Do(func() {
+	select {
+	case <-n.close:
+		return nil
+	default:
 		close(n.close)
-	})
+	}
 	return nil
 }
 
@@ -156,13 +221,12 @@ func (n *ntportListener) Accept(fn func(transport.Socket)) error {
 		n.RUnlock()
 
 		if !ok {
-			var once sync.Once
 			sock = &ntportSocket{
 				conn:  n.conn,
-				once:  once,
 				m:     m,
 				r:     make(chan *nats.Msg, 1),
 				close: make(chan bool),
+				opts:  n.opts,
 			}
 			n.Lock()
 			n.so[m.Reply] = sock
@@ -241,6 +305,7 @@ func (n *ntport) Dial(addr string, dialOpts ...transport.DialOption) (transport.
 		addr: addr,
 		id:   id,
 		sub:  sub,
+		opts: n.opts,
 	}, nil
 }
 
@@ -265,6 +330,7 @@ func (n *ntport) Listen(addr string, listenOpts ...transport.ListenOption) (tran
 		conn: c,
 		exit: make(chan bool, 1),
 		so:   make(map[string]*ntportSocket),
+		opts: n.opts,
 	}, nil
 }
 
@@ -273,7 +339,10 @@ func (n *ntport) String() string {
 }
 
 func NewTransport(opts ...transport.Option) transport.Transport {
-	var options transport.Options
+	options := transport.Options{
+		Deadline: DefaultDeadline,
+	}
+
 	for _, o := range opts {
 		o(&options)
 	}
