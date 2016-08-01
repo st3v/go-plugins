@@ -38,22 +38,28 @@ type rmqtportClient struct {
 }
 
 type rmqtportSocket struct {
+	rt    *rmqtport
 	conn  *rabbitMQConn
 	d     *amqp.Delivery
 	close chan bool
-	once  sync.Once
+
 	sync.Mutex
 	r  chan *amqp.Delivery
 	bl []*amqp.Delivery
 }
 
 type rmqtportListener struct {
+	rt   *rmqtport
 	conn *rabbitMQConn
 	addr string
 
 	sync.RWMutex
 	so map[string]*rmqtportSocket
 }
+
+var (
+	DefaultTimeout = time.Minute
+)
 
 func init() {
 	cmd.DefaultTransports["rabbitmq"] = NewTransport
@@ -77,14 +83,34 @@ func (r *rmqtportClient) Send(m *transport.Message) error {
 		Headers:       headers,
 	}
 
-	if err := r.rt.conn.Publish(DefaultExchange, r.addr, message); err != nil {
+	// no timeout
+	if r.rt.opts.Timeout == time.Duration(0) {
+		return r.rt.conn.Publish(DefaultExchange, r.addr, message)
+	}
+
+	// use the timeout
+	ch := make(chan error, 1)
+
+	go func() {
+		ch <- r.rt.conn.Publish(DefaultExchange, r.addr, message)
+	}()
+
+	select {
+	case err := <-ch:
 		return err
+	case <-time.After(r.rt.opts.Timeout):
+		return errors.New("timed out")
 	}
 
 	return nil
 }
 
 func (r *rmqtportClient) Recv(m *transport.Message) error {
+	timeout := DefaultTimeout
+	if r.rt.opts.Timeout > time.Duration(0) {
+		timeout = r.rt.opts.Timeout
+	}
+
 	select {
 	case d := <-r.reply:
 		mr := &transport.Message{
@@ -98,7 +124,7 @@ func (r *rmqtportClient) Recv(m *transport.Message) error {
 
 		*m = *mr
 		return nil
-	case <-time.After(time.Second * 10):
+	case <-time.After(timeout):
 		return errors.New("timed out")
 	}
 }
@@ -113,7 +139,19 @@ func (r *rmqtportSocket) Recv(m *transport.Message) error {
 		return errors.New("message passed in is nil")
 	}
 
-	d, ok := <-r.r
+	var d *amqp.Delivery
+	var ok bool
+
+	if r.rt.opts.Timeout > time.Duration(0) {
+		select {
+		case d, ok = <-r.r:
+		case <-time.After(r.rt.opts.Timeout):
+			return errors.New("timed out")
+		}
+	} else {
+		d, ok = <-r.r
+	}
+
 	if !ok {
 		return io.EOF
 	}
@@ -152,13 +190,36 @@ func (r *rmqtportSocket) Send(m *transport.Message) error {
 	for k, v := range m.Header {
 		msg.Headers[k] = v
 	}
-	return r.conn.Publish("", r.d.ReplyTo, msg)
+
+	// no timeout
+	if r.rt.opts.Timeout == time.Duration(0) {
+		return r.conn.Publish("", r.d.ReplyTo, msg)
+	}
+
+	// use the timeout
+	ch := make(chan error, 1)
+
+	go func() {
+		ch <- r.conn.Publish("", r.d.ReplyTo, msg)
+	}()
+
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(r.rt.opts.Timeout):
+		return errors.New("timed out")
+	}
+
+	return nil
 }
 
 func (r *rmqtportSocket) Close() error {
-	r.once.Do(func() {
+	select {
+	case <-r.close:
+		return nil
+	default:
 		close(r.close)
-	})
+	}
 	return nil
 }
 
@@ -182,12 +243,11 @@ func (r *rmqtportListener) Accept(fn func(transport.Socket)) error {
 		sock, ok := r.so[d.CorrelationId]
 		r.RUnlock()
 		if !ok {
-			var once sync.Once
 			sock = &rmqtportSocket{
+				rt:    r.rt,
 				d:     &d,
 				r:     make(chan *amqp.Delivery, 1),
 				conn:  r.conn,
-				once:  once,
 				close: make(chan bool, 1),
 			}
 			r.Lock()
@@ -301,6 +361,7 @@ func (r *rmqtport) Listen(addr string, opts ...transport.ListenOption) (transpor
 	<-conn.Init(r.opts.Secure, r.opts.TLSConfig)
 
 	return &rmqtportListener{
+		rt:   r,
 		addr: addr,
 		conn: conn,
 		so:   make(map[string]*rmqtportSocket),
@@ -312,7 +373,10 @@ func (r *rmqtport) String() string {
 }
 
 func NewTransport(opts ...transport.Option) transport.Transport {
-	var options transport.Options
+	options := transport.Options{
+		Timeout: DefaultTimeout,
+	}
+
 	for _, o := range opts {
 		o(&options)
 	}
