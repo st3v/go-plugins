@@ -12,7 +12,9 @@ import (
 	"github.com/micro/go-micro/codec"
 	errors "github.com/micro/go-micro/errors"
 	"github.com/micro/go-micro/metadata"
+	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/selector"
+	"github.com/micro/go-micro/transport"
 
 	"google.golang.org/grpc"
 	gmetadata "google.golang.org/grpc/metadata"
@@ -50,7 +52,8 @@ func (g *grpcClient) call(ctx context.Context, address string, req client.Reques
 	}
 
 	var grr error
-	cc, err := grpc.Dial(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout))
+	// TODO: do not use insecure
+	cc, err := grpc.Dial(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout), grpc.WithInsecure())
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", fmt.Sprintf("Error sending request: %v", err))
 	}
@@ -65,10 +68,8 @@ func (g *grpcClient) call(ctx context.Context, address string, req client.Reques
 	select {
 	case err := <-ch:
 		grr = err
-		return err
 	case <-ctx.Done():
 		grr = ctx.Err()
-		return errors.New("go.micro.client", fmt.Sprintf("%v", ctx.Err()), 408)
 	}
 
 	return grr
@@ -94,7 +95,8 @@ func (g *grpcClient) stream(ctx context.Context, address string, req client.Requ
 		return nil, errors.InternalServerError("go.micro.client", err.Error())
 	}
 
-	cc, err := grpc.Dial(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout))
+	// TODO: do not use insecure
+	cc, err := grpc.Dial(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout), grpc.WithInsecure())
 	if err != nil {
 		return nil, errors.InternalServerError("go.micro.client", fmt.Sprintf("Error sending request: %v", err))
 	}
@@ -393,9 +395,35 @@ func (g *grpcClient) String() string {
 }
 
 func newClient(opts ...client.Option) client.Client {
-	var options client.Options
+	options := client.Options{
+		CallOptions: client.CallOptions{
+			Backoff:        client.DefaultBackoff,
+			Retries:        client.DefaultRetries,
+			RequestTimeout: client.DefaultRequestTimeout,
+			DialTimeout:    transport.DefaultDialTimeout,
+		},
+	}
+
 	for _, o := range opts {
 		o(&options)
+	}
+
+	if len(options.ContentType) == 0 {
+		options.ContentType = "application/grpc+proto"
+	}
+
+	if options.Broker == nil {
+		options.Broker = broker.DefaultBroker
+	}
+
+	if options.Registry == nil {
+		options.Registry = registry.DefaultRegistry
+	}
+
+	if options.Selector == nil {
+		options.Selector = selector.NewSelector(
+			selector.Registry(options.Registry),
+		)
 	}
 
 	rc := &grpcClient{
