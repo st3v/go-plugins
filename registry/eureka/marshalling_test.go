@@ -2,11 +2,10 @@ package eureka
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
-	"github.com/hudl/fargo"
 	"github.com/micro/go-micro/registry"
+	eureka "github.com/st3v/go-eureka"
 )
 
 func TestServiceToInstance(t *testing.T) {
@@ -45,10 +44,6 @@ func TestServiceToInstance(t *testing.T) {
 		t.Error("Unexpected serviceToInstance error:", err)
 	}
 
-	instanceMetadata := instance.Metadata.GetMap()
-
-	expectedUniqueID := fmt.Sprintf("%s:%s", nodes[0].Address, nodes[0].Id)
-
 	expectedEndpointsJSON, err := json.Marshal(endpoints)
 	if err != nil {
 		t.Error("Unexpected endpoints marshal error:", err)
@@ -64,19 +59,17 @@ func TestServiceToInstance(t *testing.T) {
 		want interface{}
 		got  interface{}
 	}{
-		{"instance.App", service.Name, instance.App},
+		{"instance.AppName", service.Name, instance.AppName},
 		{"instance.HostName", nodes[0].Address, instance.HostName},
 		{"instance.IPAddr", nodes[0].Address, instance.IPAddr},
-		{"instance.VipAddress", nodes[0].Address, instance.VipAddress},
-		{"instance.SecureVipAddress", nodes[0].Address, instance.SecureVipAddress},
-		{"instance.Port", nodes[0].Port, instance.Port},
-		{"instance.Status", fargo.UP, instance.Status},
-		{"instance.UniqueID()", expectedUniqueID, instance.UniqueID(*instance)},
-		{"instance.DataCenteInfo.Name", fargo.MyOwn, instance.DataCenterInfo.Name},
-		{`instance.Metadata["version"]`, service.Version, instanceMetadata["version"]},
-		{`instance.Metadata["instanceId"]`, nodes[0].Id, instanceMetadata["instanceId"]},
-		{`instance.Metadata["endpoints"]`, string(expectedEndpointsJSON), instanceMetadata["endpoints"]},
-		{`instance.Metadata["metadata"]`, string(expectedNodeMetadataJSON), instanceMetadata["metadata"]},
+		{"instance.VipAddress", nodes[0].Address, instance.VIPAddr},
+		{"instance.SecureVipAddress", nodes[0].Address, instance.SecureVIPAddr},
+		{"instance.Port", nodes[0].Port, int(instance.Port)},
+		{"instance.Status", eureka.StatusUp, instance.Status},
+		{"instance.DataCenter.Name", eureka.DataCenterTypePrivate, instance.DataCenterInfo.Type},
+		{`instance.Metadata["version"]`, service.Version, instance.Metadata["version"]},
+		{`instance.Metadata["endpoints"]`, string(expectedEndpointsJSON), instance.Metadata["endpoints"]},
+		{`instance.Metadata["metadata"]`, string(expectedNodeMetadataJSON), instance.Metadata["metadata"]},
 	}
 
 	for _, test := range testData {

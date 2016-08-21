@@ -2,20 +2,16 @@ package eureka
 
 import (
 	"errors"
-	"net/http"
 	"testing"
 
-	"golang.org/x/net/context"
-
-	"github.com/hudl/fargo"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-plugins/registry/eureka/mock"
 )
 
 func TestRegistration(t *testing.T) {
 	testData := []struct {
-		getInstanceErr       error
-		callCountGetInstance int
+		appInstanceErr       error
+		callCountAppInstance int
 		callCountRegister    int
 		callCountHeartbeat   int
 	}{
@@ -30,46 +26,34 @@ func TestRegistration(t *testing.T) {
 	}
 
 	for _, test := range testData {
-		mockConn := new(mock.FargoConnection)
-		mockConn.GetInstanceReturns(nil, test.getInstanceErr)
-		eureka.conn = mockConn
+		mockClient := new(mock.Client)
+		mockClient.AppInstanceReturns(nil, test.appInstanceErr)
+		eureka.client = mockClient
 
 		eureka.Register(service)
 
-		if mockConn.GetInstanceCallCount() != test.callCountGetInstance {
+		if mockClient.AppInstanceCallCount() != test.callCountAppInstance {
 			t.Errorf(
-				"Expected exactly %d calls to GetInstance, got %d calls.",
-				test.callCountGetInstance,
-				mockConn.GetInstanceCallCount(),
+				"Expected exactly %d calls to AppInstance, got %d calls.",
+				test.callCountAppInstance,
+				mockClient.AppInstanceCallCount(),
 			)
 		}
 
-		if mockConn.RegisterInstanceCallCount() != test.callCountRegister {
+		if mockClient.RegisterCallCount() != test.callCountRegister {
 			t.Errorf(
 				"Expected exactly %d calls of RegisterInstance, got %d calls.",
 				test.callCountRegister,
-				mockConn.RegisterInstanceCallCount(),
+				mockClient.RegisterCallCount(),
 			)
 		}
 
-		if mockConn.HeartBeatInstanceCallCount() != test.callCountHeartbeat {
+		if mockClient.HeartbeatCallCount() != test.callCountHeartbeat {
 			t.Errorf(
-				"Expected exactly %d calls of HeartBeatInstance, got %d calls.",
+				"Expected exactly %d calls of Heartbeat, got %d calls.",
 				test.callCountHeartbeat,
-				mockConn.HeartBeatInstanceCallCount(),
+				mockClient.HeartbeatCallCount(),
 			)
 		}
-	}
-}
-
-func TestSwitchHttpClient(t *testing.T) {
-	expected := new(http.Client)
-
-	NewRegistry(func(o *registry.Options) {
-		o.Context = context.WithValue(o.Context, contextHttpClient{}, expected)
-	})
-
-	if fargo.HttpClient != expected {
-		t.Errorf("Unexpected fargo.HttpClient: got %v, want %v", fargo.HttpClient, expected)
 	}
 }

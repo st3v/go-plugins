@@ -10,30 +10,30 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/hudl/fargo"
+	"github.com/st3v/go-eureka"
+
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
-	"github.com/op/go-logging"
 )
 
-type fargoConnection interface {
-	RegisterInstance(*fargo.Instance) error
-	DeregisterInstance(*fargo.Instance) error
-	HeartBeatInstance(*fargo.Instance) error
-	GetInstance(string, string) (*fargo.Instance, error)
-	GetApp(string) (*fargo.Application, error)
-	GetApps() (map[string]*fargo.Application, error)
-	ScheduleAppUpdates(string, bool, <-chan struct{}) <-chan fargo.AppUpdate
+type eurekaClient interface {
+	Register(*eureka.Instance) error
+	Deregister(*eureka.Instance) error
+	Heartbeat(*eureka.Instance) error
+	Apps() ([]*eureka.App, error)
+	App(appName string) (*eureka.App, error)
+	AppInstance(appName, instanceID string) (*eureka.Instance, error)
+	Watch(pollInterval time.Duration) *eureka.Watcher
 }
 
 type eurekaRegistry struct {
-	conn fargoConnection
-	opts registry.Options
+	client       eurekaClient
+	opts         registry.Options
+	pollInterval time.Duration
 }
 
 func init() {
 	cmd.DefaultRegistries["eureka"] = NewRegistry
-	logging.SetLevel(logging.ERROR, "fargo")
 }
 
 func newRegistry(opts ...registry.Option) registry.Registry {
@@ -57,16 +57,15 @@ func newRegistry(opts ...registry.Option) registry.Registry {
 		cAddrs = []string{"http://localhost:8080/eureka/v2"}
 	}
 
-	if c, ok := options.Context.Value(contextHttpClient{}).(*http.Client); ok {
-		fargo.HttpClient = c
+	clientOpts := []eureka.Option{}
+	if c, ok := options.Context.Value(contextHTTPClient{}).(*http.Client); ok {
+		clientOpts = append(clientOpts, eureka.HTTPClient(c))
 	}
 
-	conn := fargo.NewConn(cAddrs...)
-	conn.PollInterval = time.Second * 5
-
 	return &eurekaRegistry{
-		conn: &conn,
-		opts: options,
+		client:       eureka.NewClient(cAddrs, clientOpts...),
+		opts:         options,
+		pollInterval: time.Second * 5,
 	}
 }
 
@@ -77,10 +76,10 @@ func (e *eurekaRegistry) Register(s *registry.Service, opts ...registry.Register
 	}
 
 	if e.instanceRegistered(instance) {
-		return e.conn.HeartBeatInstance(instance)
+		return e.client.Heartbeat(instance)
 	}
 
-	return e.conn.RegisterInstance(instance)
+	return e.client.Register(instance)
 }
 
 func (e *eurekaRegistry) Deregister(s *registry.Service) error {
@@ -88,11 +87,11 @@ func (e *eurekaRegistry) Deregister(s *registry.Service) error {
 	if err != nil {
 		return err
 	}
-	return e.conn.DeregisterInstance(instance)
+	return e.client.Deregister(instance)
 }
 
 func (e *eurekaRegistry) GetService(name string) ([]*registry.Service, error) {
-	app, err := e.conn.GetApp(name)
+	app, err := e.client.App(name)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +101,7 @@ func (e *eurekaRegistry) GetService(name string) ([]*registry.Service, error) {
 func (e *eurekaRegistry) ListServices() ([]*registry.Service, error) {
 	var services []*registry.Service
 
-	apps, err := e.conn.GetApps()
+	apps, err := e.client.Apps()
 	if err != nil {
 		return nil, err
 	}
@@ -115,15 +114,15 @@ func (e *eurekaRegistry) ListServices() ([]*registry.Service, error) {
 }
 
 func (e *eurekaRegistry) Watch() (registry.Watcher, error) {
-	return newWatcher(e.conn), nil
+	return newWatcher(e.client), nil
 }
 
 func (e *eurekaRegistry) String() string {
 	return "eureka"
 }
 
-func (e *eurekaRegistry) instanceRegistered(instance *fargo.Instance) bool {
-	_, err := e.conn.GetInstance(instance.App, instance.UniqueID(*instance))
+func (e *eurekaRegistry) instanceRegistered(instance *eureka.Instance) bool {
+	_, err := e.client.AppInstance(instance.AppName, instance.ID)
 	return err == nil
 }
 

@@ -9,7 +9,7 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-type contextHttpClient struct{}
+type contextHTTPClient struct{}
 
 var newOAuthClient = func(c clientcredentials.Config) *http.Client {
 	return c.Client(oauth2.NoContext)
@@ -24,6 +24,6 @@ func OAuth2ClientCredentials(clientID, clientSecret, tokenURL string) registry.O
 			TokenURL:     tokenURL,
 		}
 
-		o.Context = context.WithValue(o.Context, contextHttpClient{}, newOAuthClient(c))
+		o.Context = context.WithValue(o.Context, contextHTTPClient{}, newOAuthClient(c))
 	}
 }

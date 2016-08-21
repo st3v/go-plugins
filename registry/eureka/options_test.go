@@ -40,7 +40,7 @@ func TestOAuth2ClientCredentials(t *testing.T) {
 		t.Errorf("TokenURL: want %q, got %q", tokenURL, config.TokenURL)
 	}
 
-	if _, ok := options.Context.Value(contextHttpClient{}).(*http.Client); !ok {
+	if _, ok := options.Context.Value(contextHTTPClient{}).(*http.Client); !ok {
 		t.Errorf("HttpClient not set in options.Context")
 	}
 
