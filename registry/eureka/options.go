@@ -1,29 +1,26 @@
 package eureka
 
 import (
-	"net/http"
+	"golang.org/x/net/context"
 
 	"github.com/micro/go-micro/registry"
-	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
 )
 
-type contextHTTPClient struct{}
+type contextOauth2Credentials struct{}
 
-var newOAuthClient = func(c clientcredentials.Config) *http.Client {
-	return c.Client(oauth2.NoContext)
+type oauth2Credentials struct {
+	ClientID     string
+	ClientSecret string
+	TokenURL     string
 }
 
 // Enable OAuth 2.0 Client Credentials Grant Flow
 func OAuth2ClientCredentials(clientID, clientSecret, tokenURL string) registry.Option {
 	return func(o *registry.Options) {
-		c := clientcredentials.Config{
+		o.Context = context.WithValue(o.Context, contextOauth2Credentials{}, oauth2Credentials{
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
 			TokenURL:     tokenURL,
-		}
-
-		o.Context = context.WithValue(o.Context, contextHTTPClient{}, newOAuthClient(c))
+		})
 	}
 }

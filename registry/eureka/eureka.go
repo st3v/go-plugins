@@ -5,7 +5,7 @@ package eureka
 */
 
 import (
-	"net/http"
+	"crypto/tls"
 	"time"
 
 	"golang.org/x/net/context"
@@ -39,6 +39,7 @@ func init() {
 func newRegistry(opts ...registry.Option) registry.Registry {
 	options := registry.Options{
 		Context: context.Background(),
+		Secure:  true,
 	}
 
 	for _, o := range opts {
@@ -58,8 +59,23 @@ func newRegistry(opts ...registry.Option) registry.Registry {
 	}
 
 	clientOpts := []eureka.Option{}
-	if c, ok := options.Context.Value(contextHTTPClient{}).(*http.Client); ok {
-		clientOpts = append(clientOpts, eureka.HTTPClient(c))
+	if creds, ok := options.Context.Value(contextOauth2Credentials{}).(oauth2Credentials); ok {
+		clientOpts = append(clientOpts, eureka.Oauth2ClientCredentials(
+			creds.ClientID,
+			creds.ClientSecret,
+			creds.TokenURL,
+		))
+	}
+
+	if !options.Secure {
+		if options.TLSConfig == nil {
+			options.TLSConfig = new(tls.Config)
+		}
+		options.TLSConfig.InsecureSkipVerify = true
+	}
+
+	if options.TLSConfig != nil {
+		clientOpts = append(clientOpts, eureka.TLSConfig(options.TLSConfig))
 	}
 
 	return &eurekaRegistry{
