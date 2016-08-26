@@ -8,6 +8,7 @@ import (
 
 	"github.com/micro/go-platform/metrics"
 	pr "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/push"
 )
 
 type prometheus struct {
@@ -156,7 +157,7 @@ func (p *prometheus) run() {
 		case c := <-p.buf:
 			p.col = append(p.col, c)
 		case <-t.C:
-			if err := pr.PushAddCollectors(p.opts.Namespace, host, p.opts.Collectors[0], p.col...); err != nil {
+			if err := push.AddCollectors(p.opts.Namespace, map[string]string{"host": host}, p.opts.Collectors[0], p.col...); err != nil {
 				log.Print(p.String()+": ", err)
 			}
 		}
