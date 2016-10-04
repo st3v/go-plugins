@@ -1,7 +1,7 @@
 # Router Plugin
 
-The router plugin is a HTTP handler plugin for the Micro API which enables you to define routes via go-platform/config. This is 
-dynamic configuration that can then be leveraged via anything that implements the go-platform/config interface e.g file, etcd, consul 
+The router plugin is a HTTP handler plugin for the Micro API which enables you to define routes via go-os/config. This is 
+dynamic configuration that can then be leveraged via anything that implements the go-os/config interface e.g file, etcd, consul 
 or the config service.
 
 ## Features
@@ -10,7 +10,7 @@ or the config service.
 - Weighted Routing
 - Reverse Proxying
 - Priority Rules
-- Configurable via go-platform/Config
+- Configurable via go-os/Config
 - Pluggable via micro/plugins
 
 ## TODO
@@ -36,7 +36,7 @@ func init() {
 
 ## Config
 
-Configuring the router is done via a go-platform/Config source. Here's an example using the File source.
+Configuring the router is done via a go-os/Config source. Here's an example using the File source.
 
 ```go
 // Create Config Source

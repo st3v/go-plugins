@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/micro/cli"
-	"github.com/micro/go-platform/config"
-	"github.com/micro/go-platform/config/source/file"
-	"github.com/micro/go-platform/log"
+	"github.com/micro/go-os/config"
+	"github.com/micro/go-os/config/source/file"
+	"github.com/micro/go-os/log"
 	"github.com/micro/micro/plugin"
 )
 

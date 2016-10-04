@@ -1,6 +1,6 @@
 # Prometheus Metrics
 
-This is a [go-platform/metrics](https://github.com/micro/go-platform/tree/master/metrics) plugin for prometheus. 
+This is a [go-os/metrics](https://github.com/micro/go-os/tree/master/metrics) plugin for prometheus. 
 It pushes metrics on a flush interval to the pushgateway. It operates in the same manner as other metrics plugins.
 
 ## Usage
@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/micro/go-platform/metrics"
+	"github.com/micro/go-os/metrics"
 	"github.com/micro/go-plugins/metrics/prometheus"
 )
 
