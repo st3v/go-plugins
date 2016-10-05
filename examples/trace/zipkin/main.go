@@ -7,7 +7,7 @@ import (
 	example "github.com/micro/go-micro/examples/server/proto/example"
 	"github.com/micro/go-micro/metadata"
 	"github.com/micro/go-os/trace"
-	"github.com/micro/go-os/trace/zipkin"
+	"github.com/micro/go-plugins/trace/zipkin"
 	"golang.org/x/net/context"
 	"time"
 )

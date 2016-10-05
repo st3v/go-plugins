@@ -6,7 +6,7 @@ import (
 
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-os/sync"
-	"github.com/micro/go-os/sync/consul"
+	"github.com/micro/go-plugins/sync/consul"
 )
 
 func leaderStatus(i int, s sync.Leader, msg string) {
