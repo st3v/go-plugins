@@ -14,12 +14,21 @@ Contributions welcome! Join the community to discuss further.
 
 Directory	|	Description
 ---		|	---
+Bot		|	Bot inputs and commands
 Broker		|	Asynchronous Pub/Sub; NATS, NSQ, RabbitMQ, Kafka	
+Client		|	RPC Client; gRPC
 Codec		|	RPC Encoding; BSON, Mercury
+KV		|	Key-Value; Memcached, Redis
+Metrics		|	Instrumentation; Statsd, Telegraf, Prometheus
+Micro		|	Micro Toolkit Plugins
 Registry	|	Service Discovery; Etcd, Gossip, NATS
 Selector	|	Node Selection; Label, Mercury
+Server		|	Alternative servers; HTTP
+Sync		|	Locking/Leadership election; Consul, Etcd
+Trace		|	Distributed tracing; Zipkin
 Transport	|	Synchronous Request/Response; NATS, RabbitMQ
 Wrappers	|	Client/Server middleware; Circuit Breakers, Rate Limit
+
 
 ## Community Contributions
 
