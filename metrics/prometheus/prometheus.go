@@ -64,11 +64,11 @@ func format(s string) string {
 }
 
 func (c *counter) Incr(d uint64) {
-	c.cv.With(pr.Labels(c.f)).Set(float64(d))
+	c.cv.With(pr.Labels(c.f)).Add(float64(d))
 }
 
 func (c *counter) Decr(d uint64) {
-	c.cv.With(pr.Labels(c.f)).Set(-float64(d))
+	c.cv.With(pr.Labels(c.f)).Add(-float64(d))
 }
 
 func (c *counter) Reset() {
