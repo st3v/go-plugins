@@ -72,16 +72,11 @@ func NewClientByHost(host string) Kubernetes {
 		Transport: tr,
 	}
 
-	ns, err := detectNamespace()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	return &client{
 		opts: &api.Options{
 			Client:    c,
 			Host:      host,
-			Namespace: ns,
+			Namespace: "default",
 		},
 	}
 }
