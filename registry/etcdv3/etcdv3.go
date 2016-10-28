@@ -178,7 +178,7 @@ func (e *etcdv3Registry) GetService(name string) ([]*registry.Service, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
 	defer cancel()
 
-	rsp, err := e.client.Get(ctx, servicePath(name), clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortDescend))
+	rsp, err := e.client.Get(ctx, servicePath(name)+"/", clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortDescend))
 	if err != nil {
 		return nil, err
 	}
