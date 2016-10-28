@@ -72,7 +72,9 @@ func (c *counter) Decr(d uint64) {
 }
 
 func (c *counter) Reset() {
-	c.cv.With(pr.Labels(c.f)).Set(0.0)
+	// TODO: figure out how to reset since Set has been deprecated
+	//c.cv.With(pr.Labels(c.f)).Set(0.0)
+	return
 }
 
 func (c *counter) WithFields(f metrics.Fields) metrics.Counter {
