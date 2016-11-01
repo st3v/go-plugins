@@ -26,6 +26,28 @@ func (w *whitelist) Flags() []cli.Flag {
 	}
 }
 
+func (w *whitelist) load(ips ...string) {
+	for _, ip := range ips {
+		parts := strings.Split(ip, "/")
+
+		switch len(parts) {
+		// assume just an ip
+		case 1:
+			w.ips[ip] = true
+		case 2:
+			// parse cidr
+			_, ipnet, err := net.ParseCIDR(ip)
+			if err != nil {
+				log.Fatalf("[ip_whitelist] failed to parse %v: %v", ip, err)
+			}
+			w.cidrs[ipnet.String()] = ipnet
+		default:
+			log.Fatalf("[ip_whitelist] failed to parse %v", ip)
+		}
+	}
+
+}
+
 func (w *whitelist) match(ip string) bool {
 	// make ip
 	nip := net.ParseIP(ip)
@@ -69,6 +91,9 @@ func (w *whitelist) Handler() plugin.Handler {
 }
 
 func (w *whitelist) Init(ctx *cli.Context) error {
+	if whitelist := ctx.String("ip_whitelist"); len(whitelist) > 0 {
+		w.load(strings.Split(whitelist, ",")...)
+	}
 	return nil
 }
 
@@ -76,31 +101,15 @@ func (w *whitelist) String() string {
 	return "ip_whitelist"
 }
 
-func NewIPWhitelist(allowIps ...string) plugin.Plugin {
-	ips := make(map[string]bool)
-	cidrs := make(map[string]*net.IPNet)
-
-	for _, ip := range allowIps {
-		parts := strings.Split(ip, "/")
-
-		switch len(parts) {
-		// assume just an ip
-		case 1:
-			ips[ip] = true
-		case 2:
-			// parse cidr
-			_, ipnet, err := net.ParseCIDR(ip)
-			if err != nil {
-				log.Fatalf("[ip_whitelist] failed to parse %v: %v", ip, err)
-			}
-			cidrs[ipnet.String()] = ipnet
-		default:
-			log.Fatalf("[ip_whitelist] failed to parse %v", ip)
-		}
+func NewIPWhitelist(ips ...string) plugin.Plugin {
+	// create plugin
+	w := &whitelist{
+		cidrs: make(map[string]*net.IPNet),
+		ips:   make(map[string]bool),
 	}
 
-	return &whitelist{
-		cidrs: cidrs,
-		ips:   ips,
-	}
+	// load ips
+	w.load(ips...)
+
+	return w
 }
