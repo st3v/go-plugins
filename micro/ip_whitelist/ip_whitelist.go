@@ -1,5 +1,5 @@
-// Package whitelist is a micro plugin for whitelisting service requests
-package whitelist
+// Package ip_whitelist is a micro plugin for whitelisting ip addresses
+package ip_whitelist
 
 import (
 	"log"
