@@ -35,11 +35,9 @@ package grpc
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 
@@ -48,63 +46,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/transport"
 )
-
-// Compressor defines the interface gRPC uses to compress a message.
-type Compressor interface {
-	// Do compresses p into w.
-	Do(w io.Writer, p []byte) error
-	// Type returns the compression algorithm the Compressor uses.
-	Type() string
-}
-
-// NewGZIPCompressor creates a Compressor based on GZIP.
-func NewGZIPCompressor() Compressor {
-	return &gzipCompressor{}
-}
-
-type gzipCompressor struct {
-}
-
-func (c *gzipCompressor) Do(w io.Writer, p []byte) error {
-	z := gzip.NewWriter(w)
-	if _, err := z.Write(p); err != nil {
-		return err
-	}
-	return z.Close()
-}
-
-func (c *gzipCompressor) Type() string {
-	return "gzip"
-}
-
-// Decompressor defines the interface gRPC uses to decompress a message.
-type Decompressor interface {
-	// Do reads the data from r and uncompress them.
-	Do(r io.Reader) ([]byte, error)
-	// Type returns the compression algorithm the Decompressor uses.
-	Type() string
-}
-
-type gzipDecompressor struct {
-}
-
-// NewGZIPDecompressor creates a Decompressor based on GZIP.
-func NewGZIPDecompressor() Decompressor {
-	return &gzipDecompressor{}
-}
-
-func (d *gzipDecompressor) Do(r io.Reader) ([]byte, error) {
-	z, err := gzip.NewReader(r)
-	if err != nil {
-		return nil, err
-	}
-	defer z.Close()
-	return ioutil.ReadAll(z)
-}
-
-func (d *gzipDecompressor) Type() string {
-	return "gzip"
-}
 
 // The format of the payload: compressed or not?
 type payloadFormat uint8
@@ -167,7 +108,7 @@ func (p *parser) recvMsg(maxMsgSize int) (pf payloadFormat, msg []byte, err erro
 
 // encode serializes msg and prepends the message header. If msg is nil, it
 // generates the message header of 0 message length.
-func encode(c grpc.Codec, msg interface{}, cp Compressor, cbuf *bytes.Buffer) ([]byte, error) {
+func encode(c grpc.Codec, msg interface{}, cp grpc.Compressor, cbuf *bytes.Buffer) ([]byte, error) {
 	var b []byte
 	var length uint
 	if msg != nil {
@@ -210,7 +151,7 @@ func encode(c grpc.Codec, msg interface{}, cp Compressor, cbuf *bytes.Buffer) ([
 	return buf, nil
 }
 
-func checkRecvPayload(pf payloadFormat, recvCompress string, dc Decompressor) error {
+func checkRecvPayload(pf payloadFormat, recvCompress string, dc grpc.Decompressor) error {
 	switch pf {
 	case compressionNone:
 	case compressionMade:
@@ -223,7 +164,7 @@ func checkRecvPayload(pf payloadFormat, recvCompress string, dc Decompressor) er
 	return nil
 }
 
-func recv(p *parser, c grpc.Codec, s *transport.Stream, dc Decompressor, m interface{}, maxMsgSize int) error {
+func recv(p *parser, c grpc.Codec, s *transport.Stream, dc grpc.Decompressor, m interface{}, maxMsgSize int) error {
 	pf, d, err := p.recvMsg(maxMsgSize)
 	if err != nil {
 		return err

@@ -340,7 +340,7 @@ func (g *grpcServer) processStream(t transport.ServerTransport, stream *transpor
 		stream:      true,
 	}
 
-	ss := &serverStream{
+	ss := &rpcStream{
 		request:    r,
 		t:          t,
 		s:          stream,

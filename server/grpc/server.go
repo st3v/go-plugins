@@ -31,7 +31,6 @@ var (
 )
 
 type methodType struct {
-	sync.Mutex  // protects counters
 	method      reflect.Method
 	ArgType     reflect.Type
 	ReplyType   reflect.Type

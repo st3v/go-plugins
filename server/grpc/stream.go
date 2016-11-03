@@ -45,14 +45,14 @@ import (
 	"github.com/micro/go-micro/server"
 )
 
-// serverStream implements a server side Stream.
-type serverStream struct {
+// rpcStream implements a server side Stream.
+type rpcStream struct {
 	t          transport.ServerTransport
 	s          *transport.Stream
 	p          *parser
 	codec      grpc.Codec
-	cp         Compressor
-	dc         Decompressor
+	cp         grpc.Compressor
+	dc         grpc.Decompressor
 	cbuf       *bytes.Buffer
 	maxMsgSize int
 	statusCode codes.Code
@@ -62,41 +62,41 @@ type serverStream struct {
 	request server.Request
 }
 
-func (ss *serverStream) Close() error {
+func (r *rpcStream) Close() error {
 	return nil
 }
 
-func (ss *serverStream) Error() error {
+func (r *rpcStream) Error() error {
 	return nil
 }
 
-func (ss *serverStream) Request() server.Request {
-	return ss.request
+func (r *rpcStream) Request() server.Request {
+	return r.request
 }
 
-func (ss *serverStream) Context() context.Context {
-	return ss.s.Context()
+func (r *rpcStream) Context() context.Context {
+	return r.s.Context()
 }
 
-func (ss *serverStream) Send(m interface{}) (err error) {
-	out, err := encode(ss.codec, m, ss.cp, ss.cbuf)
+func (r *rpcStream) Send(m interface{}) (err error) {
+	out, err := encode(r.codec, m, r.cp, r.cbuf)
 	defer func() {
-		if ss.cbuf != nil {
-			ss.cbuf.Reset()
+		if r.cbuf != nil {
+			r.cbuf.Reset()
 		}
 	}()
 	if err != nil {
 		err = Errorf(codes.Internal, "grpc: %v", err)
 		return err
 	}
-	if err := ss.t.Write(ss.s, out, &transport.Options{Last: false}); err != nil {
+	if err := r.t.Write(r.s, out, &transport.Options{Last: false}); err != nil {
 		return toRPCErr(err)
 	}
 	return nil
 }
 
-func (ss *serverStream) Recv(m interface{}) (err error) {
-	if err := recv(ss.p, ss.codec, ss.s, ss.dc, m, ss.maxMsgSize); err != nil {
+func (r *rpcStream) Recv(m interface{}) (err error) {
+	if err := recv(r.p, r.codec, r.s, r.dc, m, r.maxMsgSize); err != nil {
 		if err == io.EOF {
 			return err
 		}
