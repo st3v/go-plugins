@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	defaultMaxMsgSize = 1024 * 1024 * 4 // use 4MB as the default message size limit
+	defaultMaxMsgSize  = 1024 * 1024 * 4 // use 4MB as the default message size limit
+	defaultContentType = "application/grpc"
 )
 
 type grpcServer struct {
@@ -115,7 +116,6 @@ func (g *grpcServer) accept(conn net.Conn) {
 }
 
 func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.Stream) {
-	// Greeter.Hello
 	serviceMethod := strings.Split(stream.Method(), ".")
 	if len(serviceMethod) != 2 {
 		if err := t.WriteStatus(stream, codes.InvalidArgument, fmt.Sprintf("malformed method name: %q", stream.Method())); err != nil {
@@ -124,7 +124,6 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 		return
 	}
 
-	// Look up the request.
 	g.rpc.mu.Lock()
 	service := g.rpc.serviceMap[serviceMethod[0]]
 	g.rpc.mu.Unlock()
@@ -142,14 +141,28 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 		}
 	}
 
-	// not stream? unary request
-	if !mtype.stream {
-		g.processRequest(t, stream, service, mtype)
+	ct := defaultContentType
+	if md, ok := metadata.FromContext(stream.Context()); ok {
+		if ctype, okk := md["content-type"]; okk {
+			ct = ctype[0]
+		}
+	}
+
+	// get codec
+	codec, err := g.newGRPCCodec(ct)
+	if err != nil {
+		if errr := t.WriteStatus(stream, codes.Internal, err.Error()); errr != nil {
+			log.Printf("grpc: Server.serveStream failed to write status: %v", errr)
+		}
 		return
 	}
 
-	// streaming request
-	g.processStream(t, stream, service, mtype)
+	if !mtype.stream {
+		g.processRequest(t, stream, service, mtype, codec, ct)
+		return
+	}
+
+	g.processStream(t, stream, service, mtype, codec, ct)
 }
 
 func (g *grpcServer) sendResponse(t transport.ServerTransport, stream *transport.Stream, msg interface{}, codec grpc.Codec, opts *transport.Options) error {
@@ -160,7 +173,7 @@ func (g *grpcServer) sendResponse(t transport.ServerTransport, stream *transport
 	return t.Write(stream, p, opts)
 }
 
-func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transport.Stream, service *service, mtype *methodType) (err error) {
+func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transport.Stream, service *service, mtype *methodType, codec grpc.Codec, ct string) (err error) {
 	p := &parser{r: stream}
 	for {
 		pf, req, err := p.recvMsg(defaultMaxMsgSize)
@@ -224,20 +237,6 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 		} else {
 			argv = reflect.New(mtype.ArgType)
 			argIsValue = true
-		}
-
-		// default content-type
-		ct := "application/grpc"
-		if md, ok := metadata.FromContext(stream.Context()); ok {
-			if ctype, okk := md["content-type"]; okk {
-				ct = ctype[0]
-			}
-		}
-
-		// get codec
-		codec, err := g.newGRPCCodec(ct)
-		if err != nil {
-			return t.WriteStatus(stream, codes.Internal, err.Error())
 		}
 
 		// Unmarshal request
@@ -316,22 +315,8 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 	}
 }
 
-func (g *grpcServer) processStream(t transport.ServerTransport, stream *transport.Stream, service *service, mtype *methodType) (err error) {
+func (g *grpcServer) processStream(t transport.ServerTransport, stream *transport.Stream, service *service, mtype *methodType, codec grpc.Codec, ct string) (err error) {
 	opts := g.opts
-
-	// default content-type
-	ct := "application/grpc"
-	if md, ok := metadata.FromContext(stream.Context()); ok {
-		if ctype, okk := md["content-type"]; okk {
-			ct = ctype[0]
-		}
-	}
-
-	// get codec
-	codec, err := g.newGRPCCodec(ct)
-	if err != nil {
-		return t.WriteStatus(stream, codes.Internal, err.Error())
-	}
 
 	r := &rpcRequest{
 		service:     opts.Name,
