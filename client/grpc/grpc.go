@@ -40,11 +40,12 @@ func (g *grpcClient) call(ctx context.Context, address string, req client.Reques
 	}
 
 	// set timeout in nanoseconds
-	header["Timeout"] = fmt.Sprintf("%d", opts.RequestTimeout)
+	header["timeout"] = fmt.Sprintf("%d", opts.RequestTimeout)
 	// set the content type for the request
-	header["Content-Type"] = req.ContentType()
+	header["x-content-type"] = req.ContentType()
 
 	md := gmetadata.New(header)
+	ctx = gmetadata.NewContext(ctx, md)
 
 	cf, err := g.newGRPCCodec(req.ContentType())
 	if err != nil {
@@ -62,7 +63,7 @@ func (g *grpcClient) call(ctx context.Context, address string, req client.Reques
 	ch := make(chan error, 1)
 
 	go func() {
-		ch <- grpc.Invoke(ctx, req.Method(), req.Request(), rsp, cc, grpc.Header(&md))
+		ch <- grpc.Invoke(ctx, req.Method(), req.Request(), rsp, cc)
 	}()
 
 	select {
@@ -84,11 +85,12 @@ func (g *grpcClient) stream(ctx context.Context, address string, req client.Requ
 	}
 
 	// set timeout in nanoseconds
-	header["Timeout"] = fmt.Sprintf("%d", opts.RequestTimeout)
+	header["timeout"] = fmt.Sprintf("%d", opts.RequestTimeout)
 	// set the content type for the request
-	header["Content-Type"] = req.ContentType()
+	header["x-content-type"] = req.ContentType()
 
 	md := gmetadata.New(header)
+	ctx = gmetadata.NewContext(ctx, md)
 
 	cf, err := g.newGRPCCodec(req.ContentType())
 	if err != nil {
@@ -107,7 +109,7 @@ func (g *grpcClient) stream(ctx context.Context, address string, req client.Requ
 		ServerStreams: true,
 	}
 
-	st, err := grpc.NewClientStream(ctx, desc, cc, req.Method(), grpc.Header(&md))
+	st, err := grpc.NewClientStream(ctx, desc, cc, req.Method())
 	if err != nil {
 		return nil, errors.InternalServerError("go.micro.client", fmt.Sprintf("Error creating stream: %v", err))
 	}

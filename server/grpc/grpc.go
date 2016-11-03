@@ -14,6 +14,7 @@ import (
 
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/codec"
+	meta "github.com/micro/go-micro/metadata"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/server"
 	//"github.com/micro/go-micro/transport"
@@ -141,11 +142,22 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 		}
 	}
 
+	// get grpc metadata
+	gmd, ok := metadata.FromContext(stream.Context())
+	if !ok {
+		gmd = metadata.MD{}
+	}
+
+	// copy the metadata to go-micro.metadata
+	md := meta.Metadata{}
+	for k, v := range gmd {
+		md[k] = strings.Join(v, ", ")
+	}
+
+	// get content type
 	ct := defaultContentType
-	if md, ok := metadata.FromContext(stream.Context()); ok {
-		if ctype, okk := md["content-type"]; okk {
-			ct = ctype[0]
-		}
+	if ctype, ok := md["x-content-type"]; ok {
+		ct = ctype
 	}
 
 	// get codec
@@ -157,12 +169,30 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 		return
 	}
 
+	// timeout for server deadline
+	to := md["timeout"]
+
+	delete(md, "x-content-type")
+	delete(md, "timeout")
+
+	// create new context
+	ctx := meta.NewContext(stream.Context(), md)
+
+	// set the timeout if we have it
+	if len(to) > 0 {
+		if n, err := strconv.ParseUint(to, 10, 64); err == nil {
+			ctx, _ = context.WithTimeout(ctx, time.Duration(n))
+		}
+	}
+
+	// process unary
 	if !mtype.stream {
-		g.processRequest(t, stream, service, mtype, codec, ct)
+		g.processRequest(t, stream, service, mtype, codec, ct, ctx)
 		return
 	}
 
-	g.processStream(t, stream, service, mtype, codec, ct)
+	// process strea
+	g.processStream(t, stream, service, mtype, codec, ct, ctx)
 }
 
 func (g *grpcServer) sendResponse(t transport.ServerTransport, stream *transport.Stream, msg interface{}, codec grpc.Codec, opts *transport.Options) error {
@@ -173,7 +203,7 @@ func (g *grpcServer) sendResponse(t transport.ServerTransport, stream *transport
 	return t.Write(stream, p, opts)
 }
 
-func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transport.Stream, service *service, mtype *methodType, codec grpc.Codec, ct string) (err error) {
+func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transport.Stream, service *service, mtype *methodType, codec grpc.Codec, ct string, ctx context.Context) (err error) {
 	p := &parser{r: stream}
 	for {
 		pf, req, err := p.recvMsg(defaultMaxMsgSize)
@@ -280,7 +310,7 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 		}
 
 		// execute the handler
-		if appErr := fn(stream.Context(), r, replyv.Interface()); appErr != nil {
+		if appErr := fn(ctx, r, replyv.Interface()); appErr != nil {
 			if err, ok := appErr.(*rpcError); ok {
 				statusCode = err.code
 				statusDesc = err.desc
@@ -315,7 +345,7 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 	}
 }
 
-func (g *grpcServer) processStream(t transport.ServerTransport, stream *transport.Stream, service *service, mtype *methodType, codec grpc.Codec, ct string) (err error) {
+func (g *grpcServer) processStream(t transport.ServerTransport, stream *transport.Stream, service *service, mtype *methodType, codec grpc.Codec, ct string, ctx context.Context) (err error) {
 	opts := g.opts
 
 	r := &rpcRequest{
@@ -351,7 +381,7 @@ func (g *grpcServer) processStream(t transport.ServerTransport, stream *transpor
 		fn = opts.HdlrWrappers[i-1](fn)
 	}
 
-	appErr := fn(stream.Context(), r, ss)
+	appErr := fn(ctx, r, ss)
 	if appErr != nil {
 		if err, ok := appErr.(*rpcError); ok {
 			ss.statusCode = err.code
