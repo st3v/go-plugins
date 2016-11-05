@@ -41,6 +41,7 @@ Feature		|	Description		|	Author
 
 Plugins can be added to go-micro in the following ways. By doing so they'll be available to set via command line args or environment variables.
 
+Import the plugin
 ```go
 import (
 	"github.com/micro/go-micro/cmd"
@@ -54,6 +55,12 @@ func main() {
 }
 ```
 
+Activate via a command line flag
+
+```shell
+go run service.go --broker=rabbitmq --registry=kubernetes --transport=nats
+```
+
 OR use them directly
 
 ```go
@@ -62,6 +69,6 @@ import (
 )
 
 func main() {
-	r := kubernetes.NewRegistry([]string{}) // default to using env vars for master API
+	r := kubernetes.NewRegistry() // default to using env vars for master API
 }
 ```
