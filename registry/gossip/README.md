@@ -11,6 +11,12 @@ Import the plugin as per usual
 import _ "github.com/micro/go-plugins/registry/gossip"
 ```
 
+Start with the registry flag
+
+```go
+go run service.go --registry=gossip
+```
+
 On startup you'll see something like
 
 ```go
