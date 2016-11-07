@@ -250,6 +250,16 @@ func (g *grpcClient) Call(ctx context.Context, req client.Request, rsp interface
 			if err == nil {
 				return nil
 			}
+
+			retry, rerr := callOpts.Retry(ctx, req, i, err)
+			if rerr != nil {
+				return rerr
+			}
+
+			if !retry {
+				return err
+			}
+
 			gerr = err
 		}
 	}
@@ -350,6 +360,16 @@ func (g *grpcClient) Stream(ctx context.Context, req client.Request, opts ...cli
 			if rsp.err == nil {
 				return rsp.stream, nil
 			}
+
+			retry, rerr := callOpts.Retry(ctx, req, i, err)
+			if rerr != nil {
+				return nil, rerr
+			}
+
+			if !retry {
+				return nil, rsp.err
+			}
+
 			grr = rsp.err
 		}
 	}
@@ -400,6 +420,7 @@ func newClient(opts ...client.Option) client.Client {
 	options := client.Options{
 		CallOptions: client.CallOptions{
 			Backoff:        client.DefaultBackoff,
+			Retry:          client.DefaultRetry,
 			Retries:        client.DefaultRetries,
 			RequestTimeout: client.DefaultRequestTimeout,
 			DialTimeout:    transport.DefaultDialTimeout,
