@@ -92,7 +92,7 @@ func (g *grpcServer) serve(l net.Listener) error {
 }
 
 func (g *grpcServer) accept(conn net.Conn) {
-	st, err := transport.NewServerTransport("http2", conn, 0, nil)
+	st, err := transport.NewServerTransport("http2", conn, &transport.ServerConfig{})
 	if err != nil {
 		conn.Close()
 		return
