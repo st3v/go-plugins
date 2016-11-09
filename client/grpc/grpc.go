@@ -201,6 +201,14 @@ func (g *grpcClient) Call(ctx context.Context, req client.Request, rsp interface
 	default:
 	}
 
+	// make copy of call method
+	gcall := g.call
+
+	// wrap the call in reverse
+	for i := len(callOpts.CallWrappers); i > 0; i-- {
+		gcall = callOpts.CallWrappers[i-1](gcall)
+	}
+
 	// return errors.New("go.micro.client", "request timeout", 408)
 	call := func(i int) error {
 		// call backoff first. Someone may want an initial start delay
@@ -229,7 +237,7 @@ func (g *grpcClient) Call(ctx context.Context, req client.Request, rsp interface
 		}
 
 		// make the call
-		err = g.call(ctx, addr, req, rsp, callOpts)
+		err = gcall(ctx, addr, req, rsp, callOpts)
 		g.opts.Selector.Mark(req.Service(), node, err)
 		return err
 	}
