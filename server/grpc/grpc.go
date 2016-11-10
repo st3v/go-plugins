@@ -112,6 +112,8 @@ func (g *grpcServer) accept(conn net.Conn) {
 			g.serveStream(st, stream)
 			wg.Done()
 		}()
+	}, func(ctx context.Context, method string) context.Context {
+		return ctx
 	})
 	wg.Wait()
 }
