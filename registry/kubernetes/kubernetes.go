@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -34,6 +35,9 @@ var (
 
 	// Pod status
 	podRunning = "Running"
+
+	// label name regex
+	labelRe = regexp.MustCompilePOSIX("[-A-Za-z0-9_.]")
 )
 
 // podSelector
@@ -43,6 +47,21 @@ var podSelector = map[string]string{
 
 func init() {
 	cmd.DefaultRegistries["kubernetes"] = NewRegistry
+}
+
+// serviceName generates a valid service name for k8s labels
+func serviceName(name string) string {
+	aname := make([]byte, len(name))
+
+	for i, r := range []byte(name) {
+		if !labelRe.Match([]byte{r}) {
+			aname[i] = '_'
+			continue
+		}
+		aname[i] = r
+	}
+
+	return string(aname)
 }
 
 // Register sets a service selector label and an annotation with a
@@ -66,11 +85,11 @@ func (c *kregistry) Register(s *registry.Service, opts ...registry.RegisterOptio
 	pod := &client.Pod{
 		Metadata: &client.Meta{
 			Labels: map[string]*string{
-				labelTypeKey:                &labelTypeValueService,
-				svcSelectorPrefix + svcName: &svcSelectorValue,
+				labelTypeKey:                             &labelTypeValueService,
+				svcSelectorPrefix + serviceName(svcName): &svcSelectorValue,
 			},
 			Annotations: map[string]*string{
-				annotationServiceKeyPrefix + svcName: &svc,
+				annotationServiceKeyPrefix + serviceName(svcName): &svc,
 			},
 		},
 	}
@@ -96,10 +115,10 @@ func (c *kregistry) Deregister(s *registry.Service) error {
 	pod := &client.Pod{
 		Metadata: &client.Meta{
 			Labels: map[string]*string{
-				svcSelectorPrefix + svcName: nil,
+				svcSelectorPrefix + serviceName(svcName): nil,
 			},
 			Annotations: map[string]*string{
-				annotationServiceKeyPrefix + svcName: nil,
+				annotationServiceKeyPrefix + serviceName(svcName): nil,
 			},
 		},
 	}
@@ -116,7 +135,7 @@ func (c *kregistry) Deregister(s *registry.Service) error {
 // and build services from the annotations.
 func (c *kregistry) GetService(name string) ([]*registry.Service, error) {
 	pods, err := c.client.ListPods(map[string]string{
-		svcSelectorPrefix + name: svcSelectorValue,
+		svcSelectorPrefix + serviceName(name): svcSelectorValue,
 	})
 	if err != nil {
 		return nil, err
@@ -135,7 +154,7 @@ func (c *kregistry) GetService(name string) ([]*registry.Service, error) {
 			continue
 		}
 		// get serialised service from annotation
-		svcStr, ok := pod.Metadata.Annotations[annotationServiceKeyPrefix+name]
+		svcStr, ok := pod.Metadata.Annotations[annotationServiceKeyPrefix+serviceName(name)]
 		if !ok {
 			continue
 		}
@@ -178,14 +197,18 @@ func (c *kregistry) ListServices() ([]*registry.Service, error) {
 		if pod.Status.Phase != podRunning {
 			continue
 		}
-		for ak := range pod.Metadata.Annotations {
-			if !strings.HasPrefix(ak, annotationServiceKeyPrefix) {
+		for k, v := range pod.Metadata.Annotations {
+			if !strings.HasPrefix(k, annotationServiceKeyPrefix) {
 				continue
 			}
-			name := strings.TrimPrefix(ak, annotationServiceKeyPrefix)
-			if len(name) > 0 {
-				svcs[name] = true
+
+			// we have to unmarshal the annotation itself since the
+			// key is encoded to match the regex restriction.
+			var svc registry.Service
+			if err := json.Unmarshal([]byte(*v), &svc); err != nil {
+				continue
 			}
+			svcs[svc.Name] = true
 		}
 	}
 
