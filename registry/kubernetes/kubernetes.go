@@ -89,7 +89,7 @@ func (c *kregistry) Register(s *registry.Service, opts ...registry.RegisterOptio
 				svcSelectorPrefix + serviceName(svcName): &svcSelectorValue,
 			},
 			Annotations: map[string]*string{
-				annotationServiceKeyPrefix + svcName: &svc,
+				annotationServiceKeyPrefix + serviceName(svcName): &svc,
 			},
 		},
 	}
@@ -118,7 +118,7 @@ func (c *kregistry) Deregister(s *registry.Service) error {
 				svcSelectorPrefix + serviceName(svcName): nil,
 			},
 			Annotations: map[string]*string{
-				annotationServiceKeyPrefix + svcName: nil,
+				annotationServiceKeyPrefix + serviceName(svcName): nil,
 			},
 		},
 	}
@@ -154,7 +154,7 @@ func (c *kregistry) GetService(name string) ([]*registry.Service, error) {
 			continue
 		}
 		// get serialised service from annotation
-		svcStr, ok := pod.Metadata.Annotations[annotationServiceKeyPrefix+name]
+		svcStr, ok := pod.Metadata.Annotations[annotationServiceKeyPrefix+serviceName(name)]
 		if !ok {
 			continue
 		}
@@ -197,14 +197,18 @@ func (c *kregistry) ListServices() ([]*registry.Service, error) {
 		if pod.Status.Phase != podRunning {
 			continue
 		}
-		for ak := range pod.Metadata.Annotations {
-			if !strings.HasPrefix(ak, annotationServiceKeyPrefix) {
+		for k, v := range pod.Metadata.Annotations {
+			if !strings.HasPrefix(k, annotationServiceKeyPrefix) {
 				continue
 			}
-			name := strings.TrimPrefix(ak, annotationServiceKeyPrefix)
-			if len(name) > 0 {
-				svcs[name] = true
+
+			// we have to unmarshal the annotation itself since the
+			// key is encoded to match the regex restriction.
+			var svc registry.Service
+			if err := json.Unmarshal([]byte(*v), &svc); err != nil {
+				continue
 			}
+			svcs[svc.Name] = true
 		}
 	}
 
