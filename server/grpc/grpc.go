@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/micro/go-micro/broker"
+	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/codec"
 	meta "github.com/micro/go-micro/metadata"
 	"github.com/micro/go-micro/registry"
@@ -41,6 +42,10 @@ type grpcServer struct {
 	subscribers map[*subscriber][]broker.Subscriber
 	// used for first registration
 	registered bool
+}
+
+func init() {
+	cmd.DefaultServers["grpc"] = NewServer
 }
 
 func newGRPCServer(opts ...server.Option) server.Server {

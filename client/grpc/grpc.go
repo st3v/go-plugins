@@ -9,6 +9,7 @@ import (
 
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/client"
+	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/codec"
 	errors "github.com/micro/go-micro/errors"
 	"github.com/micro/go-micro/metadata"
@@ -30,6 +31,10 @@ type grpcClient struct {
 var (
 	errShutdown = errs.New("connection is shut down")
 )
+
+func init() {
+	cmd.DefaultClients["grpc"] = NewClient
+}
 
 func (g *grpcClient) call(ctx context.Context, address string, req client.Request, rsp interface{}, opts client.CallOptions) error {
 	header := make(map[string]string)
