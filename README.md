@@ -113,7 +113,7 @@ func main() {
 You may want to swap out plugins using automation or add plugins to the micro toolkit. 
 An easy way to do this is by maintaining a separate file for plugin imports and including it during the build.
 
-Create file link.go
+Create file plugins.go
 ```go
 import (
 	_ "github.com/micro/go-plugins/broker/rabbitmq"
@@ -122,9 +122,9 @@ import (
 )
 ```
 
-Build with link.go
+Build with plugins.go
 ```shell
-go build -o service main.go link.go
+go build -o service main.go plugins.go
 ```
 
 Run with plugins
