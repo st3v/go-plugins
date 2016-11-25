@@ -41,7 +41,8 @@ Feature		|	Description		|	Author
 
 Plugins can be added to go-micro in the following ways. By doing so they'll be available to set via command line args or environment variables.
 
-Import the plugin
+### Import Plugins
+
 ```go
 import (
 	"github.com/micro/go-micro/cmd"
@@ -51,9 +52,33 @@ import (
 )
 
 func main() {
+	// Parse CLI flags
 	cmd.Init()
 }
 ```
+
+The same is achieved when calling ```service.Init```
+
+```go
+import (
+	"github.com/micro/go-micro"
+	_ "github.com/micro/go-plugins/broker/rabbitmq"
+	_ "github.com/micro/go-plugins/registry/kubernetes"
+	_ "github.com/micro/go-plugins/transport/nats"
+)
+
+func main() {
+	service := micro.NewService(
+		// Set service name
+		micro.Name("my.service"),
+	)
+
+	// Parse CLI flags
+	service.Init()
+}
+```
+
+### Use via CLI Flags
 
 Activate via a command line flag
 
@@ -61,14 +86,48 @@ Activate via a command line flag
 go run service.go --broker=rabbitmq --registry=kubernetes --transport=nats
 ```
 
-OR use them directly
+### Use Plugins Directly
+
+CLI Flags provide a simple way to initialise plugins but you can do the same yourself.
 
 ```go
 import (
+	"github.com/micro/go-micro"
 	"github.com/micro/go-plugins/registry/kubernetes"
 )
 
 func main() {
-	r := kubernetes.NewRegistry() // default to using env vars for master API
+	registry := kubernetes.NewRegistry() //a default to using env vars for master API
+
+	service := micro.NewService(
+		// Set service name
+		micro.Name("my.service"),
+		// Set service registry
+		micro.Registry(registry),
+	)
 }
+```
+
+## Build Pattern
+
+You may want to swap out plugins using automation or add plugins to the micro toolkit. 
+An easy way to do this is by maintaining a separate file for plugin imports and including it during the build.
+
+Create file link.go
+```go
+import (
+	_ "github.com/micro/go-plugins/broker/rabbitmq"
+	_ "github.com/micro/go-plugins/registry/kubernetes"
+	_ "github.com/micro/go-plugins/transport/nats"
+)
+```
+
+Build with link.go
+```shell
+go build -o service main.go link.go
+```
+
+Run with plugins
+```shell
+service --broker=rabbitmq --registry=kubernetes --transport=nats
 ```
