@@ -115,6 +115,8 @@ An easy way to do this is by maintaining a separate file for plugin imports and 
 
 Create file plugins.go
 ```go
+package main
+
 import (
 	_ "github.com/micro/go-plugins/broker/rabbitmq"
 	_ "github.com/micro/go-plugins/registry/kubernetes"
