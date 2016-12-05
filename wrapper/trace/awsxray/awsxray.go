@@ -95,15 +95,17 @@ func (x *xrayWrapper) Call(ctx context.Context, req client.Request, rsp interfac
 	md, _ := metadata.FromContext(ctx)
 	start := time.Now()
 
-	defer record(x.x, &segment{
-		Id:        fmt.Sprintf("%x", getRandom(8)),
-		Name:      fmt.Sprintf("%s.%s", req.Service(), req.Method()),
-		TraceId:   getTraceId(md),
-		StartTime: start.UnixNano() / 1e6,
-		EndTime:   time.Now().UnixNano() / 1e6,
-		Type:      "subsegment", // eh?
-		ParentId:  getParentId(md),
-	})
+	defer func() {
+		record(x.x, &segment{
+			Id:        fmt.Sprintf("%x", getRandom(8)),
+			Name:      fmt.Sprintf("%s.%s", req.Service(), req.Method()),
+			TraceId:   getTraceId(md),
+			StartTime: start.UnixNano() / 1e6,
+			EndTime:   time.Now().UnixNano() / 1e6,
+			Type:      "subsegment", // eh?
+			ParentId:  getParentId(md),
+		})
+	}()
 
 	return x.Client.Call(ctx, req, rsp, opts...)
 }
@@ -115,15 +117,17 @@ func NewCallWrapper(x *xray.XRay) client.CallWrapper {
 			md, _ := metadata.FromContext(ctx)
 			start := time.Now()
 
-			defer record(x, &segment{
-				Id:        fmt.Sprintf("%x", getRandom(8)),
-				Name:      addr,
-				TraceId:   getTraceId(md),
-				StartTime: start.UnixNano() / 1e6,
-				EndTime:   time.Now().UnixNano() / 1e6,
-				Type:      "subsegment", // eh?
-				ParentId:  getParentId(md),
-			})
+			defer func() {
+				record(x, &segment{
+					Id:        fmt.Sprintf("%x", getRandom(8)),
+					Name:      addr,
+					TraceId:   getTraceId(md),
+					StartTime: start.UnixNano() / 1e6,
+					EndTime:   time.Now().UnixNano() / 1e6,
+					Type:      "subsegment", // eh?
+					ParentId:  getParentId(md),
+				})
+			}()
 
 			return cf(ctx, addr, req, rsp, opts)
 		}
@@ -151,13 +155,15 @@ func NewHandlerWrapper(x *xray.XRay) server.HandlerWrapper {
 			kmd[ParentHeader] = parentId
 			start := time.Now()
 
-			defer record(x, &segment{
-				Id:        fmt.Sprintf("%x", getRandom(8)),
-				Name:      fmt.Sprintf("%s.%s", req.Service(), req.Method()),
-				TraceId:   getTraceId(md),
-				StartTime: start.UnixNano() / 1e6,
-				EndTime:   time.Now().UnixNano() / 1e6,
-			})
+			defer func() {
+				record(x, &segment{
+					Id:        fmt.Sprintf("%x", getRandom(8)),
+					Name:      fmt.Sprintf("%s.%s", req.Service(), req.Method()),
+					TraceId:   getTraceId(md),
+					StartTime: start.UnixNano() / 1e6,
+					EndTime:   time.Now().UnixNano() / 1e6,
+				})
+			}()
 
 			ctx = metadata.NewContext(ctx, kmd)
 			return h(ctx, req, rsp)
