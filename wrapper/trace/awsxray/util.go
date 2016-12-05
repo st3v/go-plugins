@@ -129,11 +129,10 @@ func record(x *xray.XRay, s *segment) {
 	b, _ := json.Marshal(s)
 
 	// ignoring response and error
-	r, err := x.PutTraceSegments(&xray.PutTraceSegmentsInput{
+	x.PutTraceSegments(&xray.PutTraceSegmentsInput{
 		TraceSegmentDocuments: []*string{
 			aws.String("TraceSegmentDocument"),
 			aws.String(string(b)),
 		},
 	})
-	fmt.Println(r, err, string(b))
 }
