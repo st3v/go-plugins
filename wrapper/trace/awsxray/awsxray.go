@@ -35,7 +35,7 @@ var (
 	TraceHeader  = "X-Amzn-Trace-Id"
 )
 
-// getRandom generates a random 12 bytes
+// getRandom generates a random byte slice
 func getRandom(i int) []byte {
 	b := make([]byte, i)
 	for {
