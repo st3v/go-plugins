@@ -99,8 +99,8 @@ func (x *xrayWrapper) Call(ctx context.Context, req client.Request, rsp interfac
 		Id:        fmt.Sprintf("%x", getRandom(8)),
 		Name:      fmt.Sprintf("%s.%s", req.Service(), req.Method()),
 		TraceId:   getTraceId(md),
-		StartTime: start.Unix(),
-		EndTime:   time.Now().Unix(),
+		StartTime: start.UnixNano() / 1e6,
+		EndTime:   time.Now().UnixNano() / 1e6,
 		Type:      "subsegment", // eh?
 		ParentId:  getParentId(md),
 	})
@@ -119,8 +119,8 @@ func NewCallWrapper(x *xray.XRay) client.CallWrapper {
 				Id:        fmt.Sprintf("%x", getRandom(8)),
 				Name:      addr,
 				TraceId:   getTraceId(md),
-				StartTime: start.Unix(),
-				EndTime:   time.Now().Unix(),
+				StartTime: start.UnixNano() / 1e6,
+				EndTime:   time.Now().UnixNano() / 1e6,
 				Type:      "subsegment", // eh?
 				ParentId:  getParentId(md),
 			})
@@ -155,8 +155,8 @@ func NewHandlerWrapper(x *xray.XRay) server.HandlerWrapper {
 				Id:        fmt.Sprintf("%x", getRandom(8)),
 				Name:      fmt.Sprintf("%s.%s", req.Service(), req.Method()),
 				TraceId:   getTraceId(md),
-				StartTime: start.Unix(),
-				EndTime:   time.Now().Unix(),
+				StartTime: start.UnixNano() / 1e6,
+				EndTime:   time.Now().UnixNano() / 1e6,
 			})
 
 			ctx = metadata.NewContext(ctx, kmd)
