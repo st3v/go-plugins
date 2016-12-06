@@ -31,6 +31,7 @@ import (
 
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/micro/go-micro/broker"
+	"github.com/micro/go-micro/cmd"
 )
 
 type mqttBroker struct {
@@ -40,6 +41,7 @@ type mqttBroker struct {
 }
 
 func init() {
+	cmd.DefaultBrokers["mqtt"] = NewBroker
 	rand.Seed(time.Now().UnixNano())
 }
 
