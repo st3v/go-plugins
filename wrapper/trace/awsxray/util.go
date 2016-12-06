@@ -2,30 +2,20 @@ package awsxray
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/xray"
-	"github.com/micro/go-micro/client"
 	"github.com/micro/go-micro/errors"
 	"github.com/micro/go-micro/metadata"
 )
 
-type number float64
-
-func (n number) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("%.3f", n)), nil
-}
-
 // getHTTP returns a http struct
-func getHTTP(req client.Request, err error) http {
+func getHTTP(url, method string, err error) http {
 	return http{
 		Request: request{
-			Method: req.Method(),
-			URL:    req.Service(),
+			Method: method,
+			URL:    url,
 		},
 		Response: response{
 			Status: getStatus(err),
@@ -117,22 +107,4 @@ func getParentId(md metadata.Metadata) string {
 	}
 
 	return ""
-}
-
-// newSegment creates a new segment based on whether we're part of an existing flow
-// record sends the trace segment
-func record(x *xray.XRay, s *segment) {
-	// set end time
-	s.EndTime = number(time.Now().Truncate(time.Millisecond).UnixNano()) / 1e9
-
-	// marshal
-	b, _ := json.Marshal(s)
-
-	// ignoring response and error
-	x.PutTraceSegments(&xray.PutTraceSegmentsInput{
-		TraceSegmentDocuments: []*string{
-			aws.String("TraceSegmentDocument"),
-			aws.String(string(b)),
-		},
-	})
 }

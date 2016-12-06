@@ -11,14 +11,14 @@ import (
 type contextSegmentKey struct{}
 
 type segment struct {
-	Name      string `json:"name"`
-	Id        string `json:"id"`
-	TraceId   string `json:"trace_id"`
-	StartTime number `json:"start_time"`
-	EndTime   number `json:"end_time"`
-	Type      string `json:"type,omitempty"`
-	ParentId  string `json:"parent_id,omitempty"`
-	HTTP      http   `json:"http,omitempty"`
+	TraceId   string  `json:"trace_id"`
+	Id        string  `json:"id"`
+	StartTime float64 `json:"start_time"`
+	EndTime   float64 `json:"end_time"`
+	Name      string  `json:"name"`
+	Type      string  `json:"type,omitempty"`
+	ParentId  string  `json:"parent_id,omitempty"`
+	HTTP      http    `json:"http,omitempty"`
 }
 
 type http struct {
@@ -52,7 +52,7 @@ func getSegment(name string, ctx context.Context) *segment {
 		Id:        fmt.Sprintf("%x", getRandom(8)),
 		Name:      name,
 		TraceId:   getTraceId(md),
-		StartTime: number(time.Now().Truncate(time.Millisecond).UnixNano()) / 1e9,
+		StartTime: float64(time.Now().Truncate(time.Millisecond).UnixNano()) / 1e9,
 	}
 
 	// we have a parent so subsegment
