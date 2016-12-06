@@ -57,8 +57,13 @@ func getSegment(name string, ctx context.Context) *segment {
 
 	// try get existing segment for parent Id
 	if p, ok := ctx.Value(contextSegmentKey{}).(*segment); ok {
-		parentId = p.Id
-		traceId = p.TraceId
+		// only set existing segment as parent if its not a subsegment itself
+		if len(parentId) == 0 && len(p.Type) == 0 {
+			parentId = p.Id
+		}
+		if len(traceId) == 0 {
+			traceId = p.TraceId
+		}
 	}
 
 	// create segment
