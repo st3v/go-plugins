@@ -5,13 +5,6 @@ package mqtt
 	This can be integrated with any broker that supports MQTT,
 	including Mosquito and AWS IoT.
 
-	TODO: Strip encoding?
-	Where brokers don't support headers we're actually
-	encoding the broker.Message in json to simplify usage
-	and cross broker compatibility. To actually use the
-	MQTT broker more widely on the internet we may need to
-	support stripping the encoding.
-
 	Note: Because of the way the MQTT library works, when you
 	unsubscribe from a topic it will unsubscribe all subscribers.
 	TODO: Perhaps create a unique client per subscription.
@@ -20,7 +13,6 @@ package mqtt
 */
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -31,6 +23,7 @@ import (
 
 	"github.com/eclipse/paho.mqtt.golang"
 	"github.com/micro/go-micro/broker"
+	"github.com/micro/go-micro/broker/codec/json"
 	"github.com/micro/go-micro/cmd"
 )
 
@@ -137,7 +130,11 @@ func newClient(addrs []string, opts broker.Options) mqtt.Client {
 }
 
 func newBroker(opts ...broker.Option) broker.Broker {
-	var options broker.Options
+	options := broker.Options{
+		// Default codec
+		Codec: json.NewCodec(),
+	}
+
 	for _, o := range opts {
 		o(&options)
 	}
@@ -199,7 +196,7 @@ func (m *mqttBroker) Publish(topic string, msg *broker.Message, opts ...broker.P
 		return errors.New("not connected")
 	}
 
-	b, err := json.Marshal(msg)
+	b, err := m.opts.Codec.Marshal(msg)
 	if err != nil {
 		return err
 	}
@@ -218,9 +215,9 @@ func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.Su
 		o(&options)
 	}
 
-	t := m.client.Subscribe(topic, 1, func(c mqtt.Client, m mqtt.Message) {
+	t := m.client.Subscribe(topic, 1, func(c mqtt.Client, mq mqtt.Message) {
 		var msg *broker.Message
-		if err := json.Unmarshal(m.Payload(), &msg); err != nil {
+		if err := m.opts.Codec.Unmarshal(mq.Payload(), &msg); err != nil {
 			log.Println(err)
 			return
 		}

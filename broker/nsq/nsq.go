@@ -1,12 +1,12 @@
 package nsq
 
 import (
-	"encoding/json"
 	"math/rand"
 	"sync"
 	"time"
 
 	"github.com/micro/go-micro/broker"
+	"github.com/micro/go-micro/broker/codec/json"
 	"github.com/micro/go-micro/cmd"
 	"github.com/nsqio/go-nsq"
 	"github.com/pborman/uuid"
@@ -144,7 +144,7 @@ func (n *nsqBroker) Disconnect() error {
 func (n *nsqBroker) Publish(topic string, message *broker.Message, opts ...broker.PublishOption) error {
 	p := n.p[rand.Int()%len(n.p)]
 
-	b, err := json.Marshal(message)
+	b, err := n.opts.Codec.Marshal(message)
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...brok
 
 		var m *broker.Message
 
-		if err := json.Unmarshal(nm.Body, &m); err != nil {
+		if err := n.opts.Codec.Unmarshal(nm.Body, &m); err != nil {
 			return err
 		}
 
@@ -248,7 +248,11 @@ func (s *subscriber) Unsubscribe() error {
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
-	var options broker.Options
+	options := broker.Options{
+		// Default codec
+		Codec: json.NewCodec(),
+	}
+
 	for _, o := range opts {
 		o(&options)
 	}

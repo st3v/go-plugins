@@ -1,7 +1,6 @@
 package redis
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -10,6 +9,8 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/micro/go-micro/broker"
+	"github.com/micro/go-micro/broker/codec"
+	"github.com/micro/go-micro/broker/codec/json"
 	"github.com/micro/go-micro/cmd"
 )
 
@@ -41,6 +42,7 @@ func (p *publication) Ack() error {
 
 // subscriber proxies and handles Redis messages as broker publications.
 type subscriber struct {
+	codec  codec.Codec
 	conn   *redis.PubSubConn
 	topic  string
 	handle broker.Handler
@@ -60,7 +62,7 @@ func (s *subscriber) recv() {
 
 			// Handle error? Only a log would be necessary since this type
 			// of issue cannot be fixed.
-			if err := json.Unmarshal(x.Data, &m); err != nil {
+			if err := s.codec.Unmarshal(x.Data, &m); err != nil {
 				break
 			}
 
@@ -108,7 +110,7 @@ func (s *subscriber) Unsubscribe() error {
 }
 
 // broker implementation for Redis.
-type nbroker struct {
+type redisBroker struct {
 	addr  string
 	pool  *redis.Pool
 	opts  broker.Options
@@ -116,23 +118,23 @@ type nbroker struct {
 }
 
 // String returns the name of the broker implementation.
-func (b *nbroker) String() string {
+func (b *redisBroker) String() string {
 	return "redis"
 }
 
 // Options returns the options defined for the broker.
-func (b *nbroker) Options() broker.Options {
+func (b *redisBroker) Options() broker.Options {
 	return b.opts
 }
 
 // Address returns the address the broker will use to create new connections.
 // This will be set only after Connect is called.
-func (b *nbroker) Address() string {
+func (b *redisBroker) Address() string {
 	return b.addr
 }
 
 // Init sets or overrides broker options.
-func (b *nbroker) Init(opts ...broker.Option) error {
+func (b *redisBroker) Init(opts ...broker.Option) error {
 	if b.pool != nil {
 		return errors.New("redis: cannot init while connected")
 	}
@@ -146,7 +148,7 @@ func (b *nbroker) Init(opts ...broker.Option) error {
 
 // Connect establishes a connection to Redis which provides the
 // pub/sub implementation.
-func (b *nbroker) Connect() error {
+func (b *redisBroker) Connect() error {
 	if b.pool != nil {
 		return nil
 	}
@@ -187,7 +189,7 @@ func (b *nbroker) Connect() error {
 }
 
 // Disconnect closes the connection pool.
-func (b *nbroker) Disconnect() error {
+func (b *redisBroker) Disconnect() error {
 	err := b.pool.Close()
 	b.pool = nil
 	b.addr = ""
@@ -195,8 +197,8 @@ func (b *nbroker) Disconnect() error {
 }
 
 // Publish publishes a message.
-func (b *nbroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
-	v, err := json.Marshal(msg)
+func (b *redisBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	v, err := b.opts.Codec.Marshal(msg)
 	if err != nil {
 		return err
 	}
@@ -209,13 +211,14 @@ func (b *nbroker) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 }
 
 // Subscribe returns a subscriber for the topic and handler.
-func (b *nbroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (b *redisBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	var options broker.SubscribeOptions
 	for _, o := range opts {
 		o(&options)
 	}
 
 	s := subscriber{
+		codec:  b.opts.Codec,
 		conn:   &redis.PubSubConn{b.pool.Get()},
 		topic:  topic,
 		handle: handler,
@@ -248,6 +251,7 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 
 	// Initialize with empty broker options.
 	options := broker.Options{
+		Codec:   json.NewCodec(),
 		Context: context.WithValue(context.Background(), optionsKey, bopts),
 	}
 
@@ -255,7 +259,7 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 		o(&options)
 	}
 
-	return &nbroker{
+	return &redisBroker{
 		opts:  options,
 		bopts: bopts,
 	}

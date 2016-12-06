@@ -5,11 +5,11 @@ package kafka
 */
 
 import (
-	"encoding/json"
 	"log"
 
 	"github.com/Shopify/sarama"
 	"github.com/micro/go-micro/broker"
+	"github.com/micro/go-micro/broker/codec/json"
 	"github.com/micro/go-micro/cmd"
 	"github.com/pborman/uuid"
 	sc "gopkg.in/bsm/sarama-cluster.v2"
@@ -134,7 +134,7 @@ func (k *kBroker) Options() broker.Options {
 }
 
 func (k *kBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
-	b, err := json.Marshal(msg)
+	b, err := k.opts.Codec.Marshal(msg)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 				log.Println("consumer error:", err)
 			case sm := <-c.Messages():
 				var m *broker.Message
-				if err := json.Unmarshal(sm.Value, &m); err != nil {
+				if err := k.opts.Codec.Unmarshal(sm.Value, &m); err != nil {
 					continue
 				}
 				if err := handler(&publication{
@@ -190,7 +190,11 @@ func (k *kBroker) String() string {
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
-	var options broker.Options
+	options := broker.Options{
+		// default to json codec
+		Codec: json.NewCodec(),
+	}
+
 	for _, o := range opts {
 		o(&options)
 	}
