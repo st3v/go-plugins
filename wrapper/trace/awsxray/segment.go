@@ -38,20 +38,24 @@ type response struct {
 // getSegment creates a new segment based on whether we're part of an existing flow
 func getSegment(name string, ctx context.Context) *segment {
 	var parentId string
+	var traceId string
 
 	// try get existing segment for parent Id
-	if p, ok := ctx.Value(contextSegmentKey{}).(*segment); ok {
+	p, ok := ctx.Value(contextSegmentKey{}).(*segment)
+	if ok {
 		parentId = p.Id
+		traceId = p.TraceId
+	} else {
+		// get metadata
+		md, _ := metadata.FromContext(ctx)
+		traceId = getTraceId(md)
 	}
-
-	// get metadata
-	md, _ := metadata.FromContext(ctx)
 
 	// create segment
 	s := &segment{
 		Id:        fmt.Sprintf("%x", getRandom(8)),
 		Name:      name,
-		TraceId:   getTraceId(md),
+		TraceId:   traceId,
 		StartTime: float64(time.Now().Truncate(time.Millisecond).UnixNano()) / 1e9,
 	}
 
