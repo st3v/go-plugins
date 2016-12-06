@@ -22,6 +22,7 @@ func (x *xrayWrapper) Call(ctx context.Context, req client.Request, rsp interfac
 
 	defer func() {
 		s.HTTP = getHTTP(req.Service(), req.Method(), err)
+		s.SetStatus(err)
 		go x.r.record(s)
 	}()
 
@@ -50,6 +51,7 @@ func NewCallWrapper(opts ...Option) client.CallWrapper {
 
 			defer func() {
 				s.HTTP = getHTTP(addr, req.Method(), err)
+				s.SetStatus(err)
 				go r.record(s)
 			}()
 
@@ -101,6 +103,7 @@ func NewHandlerWrapper(opts ...Option) server.HandlerWrapper {
 
 			defer func() {
 				s.HTTP = getHTTP(req.Service(), req.Method(), err)
+				s.SetStatus(err)
 				go r.record(s)
 			}()
 

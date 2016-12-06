@@ -19,6 +19,8 @@ type segment struct {
 	Type      string  `json:"type,omitempty"`
 	ParentId  string  `json:"parent_id,omitempty"`
 	HTTP      http    `json:"http,omitempty"`
+	Error     bool    `json:"error,omitempty"`
+	Fault     bool    `json:"fault,omitempty"`
 }
 
 type http struct {
@@ -33,6 +35,18 @@ type request struct {
 
 type response struct {
 	Status int `json:"status,omitempty"`
+}
+
+func (s *segment) SetStatus(err error) {
+	status := getStatus(err)
+	switch {
+	case status >= 500:
+		s.Fault = true
+	case status >= 400:
+		s.Error = true
+	case err != nil:
+		s.Fault = true
+	}
 }
 
 // getSegment creates a new segment based on whether we're part of an existing flow
