@@ -25,7 +25,7 @@ func (x *xrayWrapper) Call(ctx context.Context, req client.Request, rsp interfac
 		go x.r.record(s)
 	}()
 
-	ctx = context.WithValue(ctx, contextSegmentKey{}, s)
+	ctx = newContext(ctx, s)
 	err = x.Client.Call(ctx, req, rsp, opts...)
 	return err
 }
@@ -53,7 +53,7 @@ func NewCallWrapper(opts ...Option) client.CallWrapper {
 				go r.record(s)
 			}()
 
-			ctx = context.WithValue(ctx, contextSegmentKey{}, s)
+			ctx = newContext(ctx, s)
 			err = cf(ctx, addr, req, rsp, opts)
 			return err
 		}
@@ -104,7 +104,7 @@ func NewHandlerWrapper(opts ...Option) server.HandlerWrapper {
 				go r.record(s)
 			}()
 
-			ctx = context.WithValue(ctx, contextSegmentKey{}, s)
+			ctx = newContext(ctx, s)
 			err = h(ctx, req, rsp)
 			return err
 		}

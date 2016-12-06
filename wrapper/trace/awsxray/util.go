@@ -8,6 +8,7 @@ import (
 
 	"github.com/micro/go-micro/errors"
 	"github.com/micro/go-micro/metadata"
+	"golang.org/x/net/context"
 )
 
 // getHTTP returns a http struct
@@ -60,8 +61,9 @@ func getStatus(err error) int {
 func getTraceId(md metadata.Metadata) string {
 	fn := func(header string) string {
 		for _, h := range strings.Split(header, ";") {
-			if strings.HasPrefix(h, "Root=") {
-				return strings.TrimPrefix(h, "Root=")
+			th := strings.TrimSpace(h)
+			if strings.HasPrefix(th, "Root=") {
+				return strings.TrimPrefix(th, "Root=")
 			}
 		}
 
@@ -87,8 +89,9 @@ func getTraceId(md metadata.Metadata) string {
 func getParentId(md metadata.Metadata) string {
 	fn := func(header string) string {
 		for _, h := range strings.Split(header, ";") {
-			if strings.HasPrefix(h, "Parent=") {
-				return strings.TrimPrefix(h, "Parent=")
+			th := strings.TrimSpace(h)
+			if strings.HasPrefix(th, "Parent=") {
+				return strings.TrimPrefix(th, "Parent=")
 			}
 		}
 
@@ -107,4 +110,63 @@ func getParentId(md metadata.Metadata) string {
 	}
 
 	return ""
+}
+
+func setTraceId(header, traceId string) string {
+	headers := strings.Split(header, ";")
+	traceHeader := fmt.Sprintf("Root=%s", traceId)
+
+	for i, h := range headers {
+		th := strings.TrimSpace(h)
+		// get Root=Id match
+		if strings.HasPrefix(th, "Root=") {
+			// set trace header
+			headers[i] = traceHeader
+			// return entire header
+			return strings.Join(headers, "; ")
+		}
+	}
+
+	// no match; set new trace header as first entry
+	return strings.Join(append([]string{traceHeader}, headers...), "; ")
+}
+
+func setParentId(header, parentId string) string {
+	headers := strings.Split(header, ";")
+	parentHeader := fmt.Sprintf("Parent=%s", parentId)
+
+	for i, h := range headers {
+		th := strings.TrimSpace(h)
+		// get Parent=Id match
+		if strings.HasPrefix(th, "Parent=") {
+			// set parent header
+			headers[i] = parentHeader
+			// return entire header
+			return strings.Join(headers, "; ")
+		}
+	}
+
+	// no match; set new parent header
+	return strings.Join(append(headers, parentHeader), "; ")
+}
+
+func newContext(ctx context.Context, s *segment) context.Context {
+	md, _ := metadata.FromContext(ctx)
+
+	// make copy to avoid races
+	newMd := metadata.Metadata{}
+	for k, v := range md {
+		newMd[k] = v
+	}
+
+	// set trace id in header
+	newMd[TraceHeader] = setTraceId(newMd[TraceHeader], s.TraceId)
+	// set parent id in header
+	newMd[TraceHeader] = setParentId(newMd[TraceHeader], s.ParentId)
+	// store segment in context
+	ctx = context.WithValue(ctx, contextSegmentKey{}, s)
+	// store metadata in context
+	ctx = metadata.NewContext(ctx, newMd)
+
+	return ctx
 }
