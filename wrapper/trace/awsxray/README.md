@@ -21,3 +21,9 @@ service := micro.NewService(
 	micro.WrapHandler(awsxray.NewHandlerWrapper(opts...)),
 )
 ```
+
+## Example
+
+<p align="center">
+  <img src="awsxray.png" />
+</p>
