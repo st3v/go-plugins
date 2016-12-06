@@ -166,12 +166,12 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 			case err := <-c.Errors():
 				log.Println("consumer error:", err)
 			case sm := <-c.Messages():
-				var m *broker.Message
+				var m broker.Message
 				if err := k.opts.Codec.Unmarshal(sm.Value, &m); err != nil {
 					continue
 				}
 				if err := handler(&publication{
-					m:  m,
+					m:  &m,
 					t:  sm.Topic,
 					c:  c,
 					km: sm,
