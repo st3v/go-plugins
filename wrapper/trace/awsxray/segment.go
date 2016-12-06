@@ -51,18 +51,14 @@ func (s *segment) SetStatus(err error) {
 
 // getSegment creates a new segment based on whether we're part of an existing flow
 func getSegment(name string, ctx context.Context) *segment {
-	var parentId string
-	var traceId string
+	md, _ := metadata.FromContext(ctx)
+	parentId := getParentId(md)
+	traceId := getTraceId(md)
 
 	// try get existing segment for parent Id
 	if p, ok := ctx.Value(contextSegmentKey{}).(*segment); ok {
 		parentId = p.Id
 		traceId = p.TraceId
-	} else {
-		// get metadata
-		md, _ := metadata.FromContext(ctx)
-		traceId = getTraceId(md)
-		parentId = getParentId(md)
 	}
 
 	// create segment
@@ -77,9 +73,6 @@ func getSegment(name string, ctx context.Context) *segment {
 	if len(parentId) > 0 {
 		s.ParentId = parentId
 		s.Type = "subsegment"
-		// no parent? now we are the parent
-	} else {
-		s.ParentId = s.Id
 	}
 
 	return s
