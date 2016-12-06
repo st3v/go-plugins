@@ -188,7 +188,7 @@ func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...brok
 			nm.DisableAutoResponse()
 		}
 
-		var m *broker.Message
+		var m broker.Message
 
 		if err := n.opts.Codec.Unmarshal(nm.Body, &m); err != nil {
 			return err
@@ -196,7 +196,7 @@ func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...brok
 
 		return handler(&publication{
 			topic: topic,
-			m:     m,
+			m:     &m,
 			nm:    nm,
 		})
 
