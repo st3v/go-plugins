@@ -95,12 +95,12 @@ func (n *ntportClient) Recv(m *transport.Message) error {
 		return err
 	}
 
-	var mr *transport.Message
+	var mr transport.Message
 	if err := n.opts.Codec.Unmarshal(rsp.Data, &mr); err != nil {
 		return err
 	}
 
-	*m = *mr
+	*m = mr
 	return nil
 }
 
@@ -143,7 +143,7 @@ func (n *ntportSocket) Recv(m *transport.Message) error {
 	}
 	n.Unlock()
 
-	if err := n.opts.Codec.Unmarshal(r.Data, &m); err != nil {
+	if err := n.opts.Codec.Unmarshal(r.Data, m); err != nil {
 		return err
 	}
 	return nil
