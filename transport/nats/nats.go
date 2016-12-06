@@ -1,7 +1,6 @@
 package nats
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"strings"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/transport"
+	"github.com/micro/go-micro/transport/codec/json"
 	"github.com/nats-io/nats"
 )
 
@@ -59,7 +59,7 @@ func init() {
 }
 
 func (n *ntportClient) Send(m *transport.Message) error {
-	b, err := json.Marshal(m)
+	b, err := n.opts.Codec.Marshal(m)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (n *ntportClient) Recv(m *transport.Message) error {
 	}
 
 	var mr *transport.Message
-	if err := json.Unmarshal(rsp.Data, &mr); err != nil {
+	if err := n.opts.Codec.Unmarshal(rsp.Data, &mr); err != nil {
 		return err
 	}
 
@@ -143,14 +143,14 @@ func (n *ntportSocket) Recv(m *transport.Message) error {
 	}
 	n.Unlock()
 
-	if err := json.Unmarshal(r.Data, &m); err != nil {
+	if err := n.opts.Codec.Unmarshal(r.Data, &m); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (n *ntportSocket) Send(m *transport.Message) error {
-	b, err := json.Marshal(m)
+	b, err := n.opts.Codec.Marshal(m)
 	if err != nil {
 		return err
 	}
@@ -340,6 +340,8 @@ func (n *ntport) String() string {
 
 func NewTransport(opts ...transport.Option) transport.Transport {
 	options := transport.Options{
+		// Default codec
+		Codec:   json.NewCodec(),
 		Timeout: DefaultTimeout,
 	}
 
