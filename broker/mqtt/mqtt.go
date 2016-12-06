@@ -216,13 +216,13 @@ func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.Su
 	}
 
 	t := m.client.Subscribe(topic, 1, func(c mqtt.Client, mq mqtt.Message) {
-		var msg *broker.Message
+		var msg broker.Message
 		if err := m.opts.Codec.Unmarshal(mq.Payload(), &msg); err != nil {
 			log.Println(err)
 			return
 		}
 
-		if err := h(&mqttPub{topic: topic, msg: msg}); err != nil {
+		if err := h(&mqttPub{topic: topic, msg: &msg}); err != nil {
 			log.Println(err)
 		}
 	})
