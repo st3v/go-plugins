@@ -157,7 +157,7 @@ func (b *pubsubBroker) Publish(topic string, msg *broker.Message, opts ...broker
 	}
 
 	m := &pubsub.Message{
-		ID:         uuid.NewUUID().String(),
+		ID:         "m-" + uuid.NewUUID().String(),
 		Data:       msg.Body,
 		Attributes: msg.Header,
 	}
@@ -170,7 +170,7 @@ func (b *pubsubBroker) Publish(topic string, msg *broker.Message, opts ...broker
 func (b *pubsubBroker) Subscribe(topic string, h broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	options := broker.SubscribeOptions{
 		AutoAck: true,
-		Queue:   uuid.NewUUID().String(),
+		Queue:   "q-" + uuid.NewUUID().String(),
 	}
 
 	for _, o := range opts {
