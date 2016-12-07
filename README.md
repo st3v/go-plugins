@@ -14,7 +14,6 @@ Contributions welcome! Join the community to discuss further.
 
 Directory	|	Description
 ---		|	---
-Bot		|	Bot inputs and commands
 Broker		|	Asynchronous Pub/Sub; NATS, NSQ, RabbitMQ, Kafka	
 Client		|	RPC Client; gRPC
 Codec		|	RPC Encoding; BSON, Mercury
