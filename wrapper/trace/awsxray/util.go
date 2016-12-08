@@ -6,19 +6,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/micro/go-awsxray"
 	"github.com/micro/go-micro/errors"
 	"github.com/micro/go-micro/metadata"
 	"golang.org/x/net/context"
 )
 
 // getHTTP returns a http struct
-func getHTTP(url, method string, err error) http {
-	return http{
-		Request: request{
+func getHTTP(url, method string, err error) *awsxray.HTTP {
+	return &awsxray.HTTP{
+		Request: &awsxray.Request{
 			Method: method,
 			URL:    url,
 		},
-		Response: response{
+		Response: &awsxray.Response{
 			Status: getStatus(err),
 		},
 	}
@@ -34,6 +35,40 @@ func getRandom(i int) []byte {
 		}
 		return b
 	}
+}
+
+// getSegment creates a new segment based on whether we're part of an existing flow
+func getSegment(name string, ctx context.Context) *awsxray.Segment {
+	md, _ := metadata.FromContext(ctx)
+	parentId := getParentId(md)
+	traceId := getTraceId(md)
+
+	// try get existing segment for parent Id
+	if s, ok := awsxray.FromContext(ctx); ok {
+		// only set existing segment as parent if its not a subsegment itself
+		if len(parentId) == 0 && len(s.Type) == 0 {
+			parentId = s.Id
+		}
+		if len(traceId) == 0 {
+			traceId = s.TraceId
+		}
+	}
+
+	// create segment
+	s := &awsxray.Segment{
+		Id:        fmt.Sprintf("%x", getRandom(8)),
+		Name:      name,
+		TraceId:   traceId,
+		StartTime: float64(time.Now().Truncate(time.Millisecond).UnixNano()) / 1e9,
+	}
+
+	// we have a parent so subsegment
+	if len(parentId) > 0 {
+		s.ParentId = parentId
+		s.Type = "subsegment"
+	}
+
+	return s
 }
 
 // getStatus returns a status code from the error
@@ -59,26 +94,14 @@ func getStatus(err error) int {
 
 // getTraceId returns trace header or generates a new one
 func getTraceId(md metadata.Metadata) string {
-	fn := func(header string) string {
-		for _, h := range strings.Split(header, ";") {
-			th := strings.TrimSpace(h)
-			if strings.HasPrefix(th, "Root=") {
-				return strings.TrimPrefix(th, "Root=")
-			}
-		}
-
-		// return as is
-		return header
-	}
-
 	// try as is
 	if h, ok := md[TraceHeader]; ok {
-		return fn(h)
+		return awsxray.GetTraceId(h)
 	}
 
 	// try lower case
 	if h, ok := md[strings.ToLower(TraceHeader)]; ok {
-		return fn(h)
+		return awsxray.GetTraceId(h)
 	}
 
 	// generate new one, probably a bad idea...
@@ -87,70 +110,49 @@ func getTraceId(md metadata.Metadata) string {
 
 // getParentId returns parent header or blank
 func getParentId(md metadata.Metadata) string {
-	fn := func(header string) string {
-		for _, h := range strings.Split(header, ";") {
-			th := strings.TrimSpace(h)
-			if strings.HasPrefix(th, "Parent=") {
-				return strings.TrimPrefix(th, "Parent=")
-			}
-		}
-
-		// return nothing
-		return ""
-	}
-
 	// try as is
 	if h, ok := md[TraceHeader]; ok {
-		return fn(h)
+		return awsxray.GetParentId(h)
 	}
 
 	// try lower case
 	if h, ok := md[strings.ToLower(TraceHeader)]; ok {
-		return fn(h)
+		return awsxray.GetParentId(h)
 	}
 
 	return ""
 }
 
-func setTraceId(header, traceId string) string {
-	headers := strings.Split(header, ";")
-	traceHeader := fmt.Sprintf("Root=%s", traceId)
-
-	for i, h := range headers {
-		th := strings.TrimSpace(h)
-		// get Root=Id match
-		if strings.HasPrefix(th, "Root=") {
-			// set trace header
-			headers[i] = traceHeader
-			// return entire header
-			return strings.Join(headers, "; ")
-		}
-	}
-
-	// no match; set new trace header as first entry
-	return strings.Join(append([]string{traceHeader}, headers...), "; ")
+func newXRay(opts Options) *awsxray.AWSXRay {
+	return awsxray.New(
+		awsxray.WithName(opts.Name),
+		awsxray.WithClient(opts.Client),
+		awsxray.WithDaemon(opts.Daemon),
+	)
 }
 
-func setParentId(header, parentId string) string {
-	headers := strings.Split(header, ";")
-	parentHeader := fmt.Sprintf("Parent=%s", parentId)
-
-	for i, h := range headers {
-		th := strings.TrimSpace(h)
-		// get Parent=Id match
-		if strings.HasPrefix(th, "Parent=") {
-			// set parent header
-			headers[i] = parentHeader
-			// return entire header
-			return strings.Join(headers, "; ")
-		}
-	}
-
-	// no match; set new parent header
-	return strings.Join(append(headers, parentHeader), "; ")
+func record(x *awsxray.AWSXRay, s *awsxray.Segment) error {
+	// set end time
+	s.EndTime = float64(time.Now().Truncate(time.Millisecond).UnixNano()) / 1e9
+	return x.Record(s)
 }
 
-func newContext(ctx context.Context, s *segment) context.Context {
+// setCallStatus sets the http section and related status
+func setCallStatus(s *awsxray.Segment, url, method string, err error) {
+	s.HTTP = getHTTP(url, method, err)
+
+	status := getStatus(err)
+	switch {
+	case status >= 500:
+		s.Fault = true
+	case status >= 400:
+		s.Error = true
+	case err != nil:
+		s.Fault = true
+	}
+}
+
+func newContext(ctx context.Context, s *awsxray.Segment) context.Context {
 	md, _ := metadata.FromContext(ctx)
 
 	// make copy to avoid races
@@ -160,11 +162,11 @@ func newContext(ctx context.Context, s *segment) context.Context {
 	}
 
 	// set trace id in header
-	newMd[TraceHeader] = setTraceId(newMd[TraceHeader], s.TraceId)
+	newMd[TraceHeader] = awsxray.SetTraceId(newMd[TraceHeader], s.TraceId)
 	// set parent id in header
-	newMd[TraceHeader] = setParentId(newMd[TraceHeader], s.ParentId)
+	newMd[TraceHeader] = awsxray.SetParentId(newMd[TraceHeader], s.ParentId)
 	// store segment in context
-	ctx = context.WithValue(ctx, contextSegmentKey{}, s)
+	ctx = awsxray.NewContext(ctx, s)
 	// store metadata in context
 	ctx = metadata.NewContext(ctx, newMd)
 

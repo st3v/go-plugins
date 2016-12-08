@@ -15,14 +15,6 @@ type Options struct {
 
 type Option func(o *Options)
 
-func newOptions(opts ...Option) Options {
-	var options Options
-	for _, o := range opts {
-		o(&options)
-	}
-	return options
-}
-
 // WithName sets the name used for each segment. Use Service Name
 func WithName(name string) Option {
 	return func(o *Options) {

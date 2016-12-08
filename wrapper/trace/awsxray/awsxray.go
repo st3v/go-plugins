@@ -1,6 +1,7 @@
 package awsxray
 
 import (
+	"github.com/micro/go-awsxray"
 	"github.com/micro/go-micro/client"
 	"github.com/micro/go-micro/server"
 	"golang.org/x/net/context"
@@ -8,7 +9,7 @@ import (
 
 type xrayWrapper struct {
 	opts Options
-	r    recorder
+	x    *awsxray.AWSXRay
 	client.Client
 }
 
@@ -21,9 +22,8 @@ func (x *xrayWrapper) Call(ctx context.Context, req client.Request, rsp interfac
 	s := getSegment(x.opts.Name, ctx)
 
 	defer func() {
-		s.HTTP = getHTTP(req.Service(), req.Method(), err)
-		s.SetStatus(err)
-		go x.r.record(s)
+		setCallStatus(s, req.Service(), req.Method(), err)
+		go record(x.x, s)
 	}()
 
 	ctx = newContext(ctx, s)
@@ -42,7 +42,7 @@ func NewCallWrapper(opts ...Option) client.CallWrapper {
 		o(&options)
 	}
 
-	r := recorder{options}
+	x := newXRay(options)
 
 	return func(cf client.CallFunc) client.CallFunc {
 		return func(ctx context.Context, addr string, req client.Request, rsp interface{}, opts client.CallOptions) error {
@@ -50,9 +50,8 @@ func NewCallWrapper(opts ...Option) client.CallWrapper {
 			s := getSegment(options.Name, ctx)
 
 			defer func() {
-				s.HTTP = getHTTP(addr, req.Method(), err)
-				s.SetStatus(err)
-				go r.record(s)
+				setCallStatus(s, addr, req.Method(), err)
+				go record(x, s)
 			}()
 
 			ctx = newContext(ctx, s)
@@ -74,7 +73,7 @@ func NewClientWrapper(opts ...Option) client.Wrapper {
 	}
 
 	return func(c client.Client) client.Client {
-		return &xrayWrapper{options, recorder{options}, c}
+		return &xrayWrapper{options, newXRay(options), c}
 	}
 }
 
@@ -88,7 +87,7 @@ func NewHandlerWrapper(opts ...Option) server.HandlerWrapper {
 		o(&options)
 	}
 
-	r := recorder{options}
+	x := newXRay(options)
 
 	return func(h server.HandlerFunc) server.HandlerFunc {
 		return func(ctx context.Context, req server.Request, rsp interface{}) error {
@@ -102,9 +101,8 @@ func NewHandlerWrapper(opts ...Option) server.HandlerWrapper {
 			s := getSegment(name, ctx)
 
 			defer func() {
-				s.HTTP = getHTTP(req.Service(), req.Method(), err)
-				s.SetStatus(err)
-				go r.record(s)
+				setCallStatus(s, req.Service(), req.Method(), err)
+				go record(x, s)
 			}()
 
 			ctx = newContext(ctx, s)
