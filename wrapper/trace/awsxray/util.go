@@ -95,12 +95,12 @@ func getStatus(err error) int {
 // getTraceId returns trace header or generates a new one
 func getTraceId(md metadata.Metadata) string {
 	// try as is
-	if h, ok := md[TraceHeader]; ok {
+	if h, ok := md[awsxray.TraceHeader]; ok {
 		return awsxray.GetTraceId(h)
 	}
 
 	// try lower case
-	if h, ok := md[strings.ToLower(TraceHeader)]; ok {
+	if h, ok := md[strings.ToLower(awsxray.TraceHeader)]; ok {
 		return awsxray.GetTraceId(h)
 	}
 
@@ -111,12 +111,12 @@ func getTraceId(md metadata.Metadata) string {
 // getParentId returns parent header or blank
 func getParentId(md metadata.Metadata) string {
 	// try as is
-	if h, ok := md[TraceHeader]; ok {
+	if h, ok := md[awsxray.TraceHeader]; ok {
 		return awsxray.GetParentId(h)
 	}
 
 	// try lower case
-	if h, ok := md[strings.ToLower(TraceHeader)]; ok {
+	if h, ok := md[strings.ToLower(awsxray.TraceHeader)]; ok {
 		return awsxray.GetParentId(h)
 	}
 
@@ -162,9 +162,9 @@ func newContext(ctx context.Context, s *awsxray.Segment) context.Context {
 	}
 
 	// set trace id in header
-	newMd[TraceHeader] = awsxray.SetTraceId(newMd[TraceHeader], s.TraceId)
+	newMd[awsxray.TraceHeader] = awsxray.SetTraceId(newMd[awsxray.TraceHeader], s.TraceId)
 	// set parent id in header
-	newMd[TraceHeader] = awsxray.SetParentId(newMd[TraceHeader], s.ParentId)
+	newMd[awsxray.TraceHeader] = awsxray.SetParentId(newMd[awsxray.TraceHeader], s.ParentId)
 	// store segment in context
 	ctx = awsxray.NewContext(ctx, s)
 	// store metadata in context

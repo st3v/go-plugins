@@ -13,10 +13,6 @@ type xrayWrapper struct {
 	client.Client
 }
 
-var (
-	TraceHeader = "X-Amzn-Trace-Id"
-)
-
 func (x *xrayWrapper) Call(ctx context.Context, req client.Request, rsp interface{}, opts ...client.CallOption) error {
 	var err error
 	s := getSegment(x.opts.Name, ctx)
