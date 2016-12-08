@@ -5,29 +5,26 @@ import (
 	"net/http"
 
 	"github.com/micro/cli"
+	"github.com/micro/go-awsxray"
 	"github.com/micro/go-micro/client"
 	xray "github.com/micro/go-plugins/wrapper/trace/awsxray"
 	"github.com/micro/micro/plugin"
 )
 
-type awsxray struct {
+type awsXRay struct {
 	opts Options
-	rec  recorder
+	x    *awsxray.AWSXRay
 }
 
-var (
-	TraceHeader = "X-Amzn-Trace-Id"
-)
-
-func (x *awsxray) Flags() []cli.Flag {
+func (x *awsXRay) Flags() []cli.Flag {
 	return nil
 }
 
-func (x *awsxray) Commands() []cli.Command {
+func (x *awsXRay) Commands() []cli.Command {
 	return nil
 }
 
-func (x *awsxray) Handler() plugin.Handler {
+func (x *awsXRay) Handler() plugin.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			s := newSegment(x.opts.Name, r)
@@ -36,14 +33,14 @@ func (x *awsxray) Handler() plugin.Handler {
 			// serve request
 			h.ServeHTTP(xw, r)
 			// set status
-			s.SetStatus(xw.status)
+			complete(s, xw.status)
 			// send segment asynchronously
-			go x.rec.record(s)
+			go x.x.Record(s)
 		})
 	}
 }
 
-func (x *awsxray) Init(ctx *cli.Context) error {
+func (x *awsXRay) Init(ctx *cli.Context) error {
 	opts := []xray.Option{
 		xray.WithName(x.opts.Name),
 		xray.WithClient(x.opts.Client),
@@ -58,7 +55,7 @@ func (x *awsxray) Init(ctx *cli.Context) error {
 	return nil
 }
 
-func (x *awsxray) String() string {
+func (x *awsXRay) String() string {
 	return "awsxray"
 }
 
@@ -72,8 +69,12 @@ func NewXRayPlugin(opts ...Option) plugin.Plugin {
 		o(&options)
 	}
 
-	return &awsxray{
+	return &awsXRay{
 		opts: options,
-		rec:  recorder{options},
+		x: awsxray.New(
+			awsxray.WithName(options.Name),
+			awsxray.WithDaemon(options.Daemon),
+			awsxray.WithClient(options.Client),
+		),
 	}
 }

@@ -7,7 +7,21 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/micro/go-awsxray"
 )
+
+// complete sets the response status and end time
+func complete(s *awsxray.Segment, status int) {
+	switch {
+	case status >= 500:
+		s.Fault = true
+	case status >= 400:
+		s.Error = true
+	}
+	s.HTTP.Response.Status = status
+	s.EndTime = float64(time.Now().Truncate(time.Millisecond).UnixNano()) / 1e9
+}
 
 // getIp naively returns an ip for the request
 func getIp(r *http.Request) string {
@@ -45,21 +59,8 @@ func getRandom(i int) string {
 
 // getTraceId returns trace header or generates a new one
 func getTraceId(hdr http.Header) string {
-	fn := func(header string) string {
-		for _, h := range strings.Split(header, ";") {
-			th := strings.TrimSpace(h)
-			if strings.HasPrefix(th, "Root=") {
-				return strings.TrimPrefix(th, "Root=")
-			}
-		}
-
-		// return as is
-		return header
-	}
-
-	// try as is
-	if h := hdr.Get(TraceHeader); len(h) > 0 {
-		return fn(h)
+	if h := hdr.Get(awsxray.TraceHeader); len(h) > 0 {
+		return awsxray.GetTraceId(h)
 	}
 
 	// generate new one, probably a bad idea...
@@ -68,82 +69,70 @@ func getTraceId(hdr http.Header) string {
 
 // getParentId returns parent header or blank
 func getParentId(hdr http.Header) string {
-	fn := func(header string) string {
-		for _, h := range strings.Split(header, ";") {
-			th := strings.TrimSpace(h)
-			if strings.HasPrefix(th, "Parent=") {
-				return strings.TrimPrefix(th, "Parent=")
-			}
-		}
-
-		// return nothing
-		return ""
+	if h := hdr.Get(awsxray.TraceHeader); len(h) > 0 {
+		return awsxray.GetTraceId(h)
 	}
 
-	// try as is
-	if h := hdr.Get(TraceHeader); len(h) > 0 {
-		return fn(h)
-	}
-
+	// return nothing
 	return ""
 }
 
-func setTraceId(header, traceId string) string {
-	traceHeader := fmt.Sprintf("Root=%s", traceId)
+// newHTTP returns a http struct
+func newHTTP(r *http.Request) *awsxray.HTTP {
+	scheme := "http"
+	host := r.Host
 
-	// no existing header?
-	if len(header) == 0 {
-		return traceHeader
+	if len(r.URL.Scheme) > 0 {
+		scheme = r.URL.Scheme
 	}
 
-	headers := strings.Split(header, ";")
-
-	for i, h := range headers {
-		th := strings.TrimSpace(h)
-
-		if len(th) == 0 {
-			continue
-		}
-
-		// get Root=Id match
-		if strings.HasPrefix(th, "Root=") {
-			// set trace header
-			headers[i] = traceHeader
-			// return entire header
-			return strings.Join(headers, "; ")
-		}
+	if len(r.URL.Host) > 0 {
+		host = r.URL.Host
 	}
 
-	// no match; set new trace header as first entry
-	return strings.Join(append([]string{traceHeader}, headers...), "; ")
+	return &awsxray.HTTP{
+		Request: &awsxray.Request{
+			Method:    r.Method,
+			URL:       fmt.Sprintf("%s://%s%s", scheme, host, r.URL.Path),
+			ClientIP:  getIp(r),
+			UserAgent: r.UserAgent(),
+		},
+		Response: &awsxray.Response{
+			Status: 200,
+		},
+	}
 }
 
-func setParentId(header, parentId string) string {
-	parentHeader := fmt.Sprintf("Parent=%s", parentId)
+// newSegment creates a new segment based on whether we're part of an existing flow
+func newSegment(name string, r *http.Request) *awsxray.Segment {
+	// attempt to get IDs first
+	parentId := getParentId(r.Header)
+	traceId := getTraceId(r.Header)
 
-	// no existing header?
-	if len(header) == 0 {
-		return parentHeader
+	// now set the trace ID
+	traceHdr := r.Header.Get(awsxray.TraceHeader)
+	traceHdr = awsxray.SetTraceId(traceHdr, traceId)
+
+	// create segment
+	s := &awsxray.Segment{
+		Id:        getRandom(8),
+		HTTP:      newHTTP(r),
+		Name:      name,
+		TraceId:   traceId,
+		StartTime: float64(time.Now().Truncate(time.Millisecond).UnixNano()) / 1e9,
 	}
 
-	headers := strings.Split(header, ";")
-
-	for i, h := range headers {
-		th := strings.TrimSpace(h)
-
-		if len(th) == 0 {
-			continue
-		}
-
-		// get Parent=Id match
-		if strings.HasPrefix(th, "Parent=") {
-			// set parent header
-			headers[i] = parentHeader
-			// return entire header
-			return strings.Join(headers, "; ")
-		}
+	// if we have a parent then we are a subsegment
+	if len(parentId) > 0 {
+		s.ParentId = parentId
+		s.Type = "subsegment"
+	} else {
+		// set a new parent Id
+		traceHdr = awsxray.SetParentId(traceHdr, s.Id)
 	}
 
-	// no match; set new parent header
-	return strings.Join(append(headers, parentHeader), "; ")
+	// now save the header for the future context
+	r.Header.Set(awsxray.TraceHeader, traceHdr)
+
+	return s
 }
