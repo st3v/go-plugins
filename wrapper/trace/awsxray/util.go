@@ -125,7 +125,6 @@ func getParentId(md metadata.Metadata) string {
 
 func newXRay(opts Options) *awsxray.AWSXRay {
 	return awsxray.New(
-		awsxray.WithName(opts.Name),
 		awsxray.WithClient(opts.Client),
 		awsxray.WithDaemon(opts.Daemon),
 	)

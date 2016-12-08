@@ -72,7 +72,6 @@ func NewXRayPlugin(opts ...Option) plugin.Plugin {
 	return &awsXRay{
 		opts: options,
 		x: awsxray.New(
-			awsxray.WithName(options.Name),
 			awsxray.WithDaemon(options.Daemon),
 			awsxray.WithClient(options.Client),
 		),
