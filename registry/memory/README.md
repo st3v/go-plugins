@@ -1,6 +1,6 @@
 # Memory Registry
 
-In-memory registry can be used where no coordination of third party dependency is required.
+In-memory registry can be used where no coordination or third party dependency is required.
 
 ## Usage
 
