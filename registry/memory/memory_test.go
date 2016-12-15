@@ -118,7 +118,6 @@ func TestMemoryRegistry(t *testing.T) {
 
 	// using test data
 	for k, v := range testData {
-
 		fn(k, v)
 	}
 

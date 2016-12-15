@@ -7,12 +7,15 @@ import (
 )
 
 type memoryWatcher struct {
+	id   string
+	res  chan *registry.Result
 	exit chan bool
 }
 
 func (m *memoryWatcher) Next() (*registry.Result, error) {
-	// not implement so we just block until exit
 	select {
+	case r := <-m.res:
+		return r, nil
 	case <-m.exit:
 		return nil, errors.New("watcher stopped")
 	}
