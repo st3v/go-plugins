@@ -16,7 +16,7 @@ reason Discovery continues to function.
 
 ### Run Discovery
 
-- [Discovery Service](https://github.com/micro/discovery-srv)
+[Installation instructions](https://github.com/micro/discovery-srv)
 
 ### With Flag
 
