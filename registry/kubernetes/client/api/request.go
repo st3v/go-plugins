@@ -149,14 +149,14 @@ func (r *Request) Do() *Response {
 	req, err := r.request()
 	if err != nil {
 		return &Response{
-			err: r.err,
+			err: err,
 		}
 	}
 
 	res, err := r.client.Do(req)
 	if err != nil {
 		return &Response{
-			err: r.err,
+			err: err,
 		}
 	}
 
