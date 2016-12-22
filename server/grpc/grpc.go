@@ -132,14 +132,19 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 		return
 	}
 
+native:
 	g.rpc.mu.Lock()
 	service := g.rpc.serviceMap[serviceMethod[0]]
 	g.rpc.mu.Unlock()
 	if service == nil {
-		if err := t.WriteStatus(stream, codes.Unimplemented, fmt.Sprintf("unknown service %v", service)); err != nil {
-			log.Printf("grpc: Server.serveStream failed to write status: %v", err)
+		serviceMethod = strings.Split(serviceMethod[1], "/")
+		if len(serviceMethod) != 2 {
+			if err := t.WriteStatus(stream, codes.Unimplemented, fmt.Sprintf("unknown service %v", service)); err != nil {
+				log.Printf("grpc: Server.serveStream failed to write status: %v", err)
+			}
+			return
 		}
-		return
+		goto native
 	}
 
 	mtype := service.method[serviceMethod[1]]
