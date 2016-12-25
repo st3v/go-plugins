@@ -2,7 +2,7 @@
 
 A repository for go-micro plugins.
 
-Check out the Micro on NATS blog post to learn more about plugins [https://blog.micro.mu/2016/04/11/micro-on-nats.html](https://blog.micro.mu/2016/04/11/micro-on-nats.html).
+Check out the [Micro on NATS](https://blog.micro.mu/2016/04/11/micro-on-nats.html) blog post to learn more about plugins.
 
 Follow us on Twitter at [@MicroHQ](https://twitter.com/microhq), join the [Slack](https://micro-services.slack.com) community [here](http://slack.micro.mu/) or 
 check out the [Mailing List](https://groups.google.com/forum/#!forum/microhq).
