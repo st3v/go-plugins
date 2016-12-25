@@ -1,14 +1,11 @@
 # Go Plugins [![License](https://img.shields.io/:license-apache-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![GoDoc](https://godoc.org/github.com/micro/go-plugins?status.svg)](https://godoc.org/github.com/micro/go-plugins) [![Travis CI](https://travis-ci.org/micro/go-plugins.svg?branch=master)](https://travis-ci.org/micro/go-plugins) [![Go Report Card](https://goreportcard.com/badge/micro/go-plugins)](https://goreportcard.com/report/github.com/micro/go-plugins)
 
-A repository for go-micro and go-os plugins. The go-micro framework is a pluggable architecture, here we provide additional plugins to 
-swap out the defaults. 
+A repository for go-micro plugins.
 
 Check out the Micro on NATS blog post to learn more about plugins [https://blog.micro.mu/2016/04/11/micro-on-nats.html](https://blog.micro.mu/2016/04/11/micro-on-nats.html).
 
-Contributions welcome! Join the community to discuss further.
-
-- [Mailing List](https://groups.google.com/forum/#!forum/microhq) 
-- [Slack](https://micro-services.slack.com) : [auto-invite](http://slack.micro.mu/)
+Follow us on Twitter at [@MicroHQ](https://twitter.com/microhq), join the [Slack](https://micro-services.slack.com) community [here](http://slack.micro.mu/) or 
+check out the [Mailing List](https://groups.google.com/forum/#!forum/microhq).
 
 ## What's here?
 
