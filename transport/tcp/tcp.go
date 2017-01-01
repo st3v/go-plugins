@@ -1,3 +1,4 @@
+// Package tcp provides a TCP transport
 package tcp
 
 import (

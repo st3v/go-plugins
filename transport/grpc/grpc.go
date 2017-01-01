@@ -1,3 +1,4 @@
+// Package grpc provides a grpc transport
 package grpc
 
 import (

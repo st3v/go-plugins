@@ -1,3 +1,4 @@
+// Package grpc provides a grpc server
 package grpc
 
 import (

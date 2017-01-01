@@ -1,3 +1,4 @@
+// Package rabbitmq provides a RabbitMQ broker
 package rabbitmq
 
 import (

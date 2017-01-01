@@ -1,3 +1,4 @@
+// Package grpc provides a gRPC client
 package grpc
 
 import (
