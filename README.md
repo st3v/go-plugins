@@ -12,14 +12,14 @@ check out the [Mailing List](https://groups.google.com/forum/#!forum/microhq).
 Directory	|	Description
 ---		|	---
 Broker		|	Asynchronous Pub/Sub; NATS, NSQ, RabbitMQ, Kafka	
-Client		|	RPC Client; gRPC
+Client		|	Alternative clients; gRPC, HTTP
 Codec		|	RPC Encoding; BSON, Mercury
 KV		|	Key-Value; Memcached, Redis
 Metrics		|	Instrumentation; Statsd, Telegraf, Prometheus
 Micro		|	Micro Toolkit Plugins
 Registry	|	Service Discovery; Etcd, Gossip, NATS
 Selector	|	Node Selection; Label, Mercury
-Server		|	Alternative servers; HTTP
+Server		|	Alternative servers; gRPC, HTTP
 Sync		|	Locking/Leadership election; Consul, Etcd
 Trace		|	Distributed tracing; Zipkin
 Transport	|	Synchronous Request/Response; NATS, RabbitMQ
