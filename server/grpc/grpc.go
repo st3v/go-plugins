@@ -302,7 +302,6 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 			service:     g.opts.Name,
 			contentType: ct,
 			method:      fmt.Sprintf("%s.%s", service.name, mtype.method.Name),
-			rawMethod:   stream.Method(),
 			request:     argv.Interface(),
 		}
 
@@ -366,7 +365,6 @@ func (g *grpcServer) processStream(t transport.ServerTransport, stream *transpor
 		service:     opts.Name,
 		contentType: ct,
 		method:      fmt.Sprintf("%s.%s", service.name, mtype.method.Name),
-		rawMethod:   stream.Method(),
 		stream:      true,
 	}
 

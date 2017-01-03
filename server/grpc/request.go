@@ -3,7 +3,6 @@ package grpc
 type rpcRequest struct {
 	service     string
 	method      string
-	rawMethod   string
 	contentType string
 	request     interface{}
 	stream      bool
@@ -25,10 +24,6 @@ func (r *rpcRequest) Service() string {
 
 func (r *rpcRequest) Method() string {
 	return r.method
-}
-
-func (r *rpcRequest) RawMethod() string {
-	return r.rawMethod
 }
 
 func (r *rpcRequest) Request() interface{} {
