@@ -11,6 +11,8 @@ import (
 	"github.com/micro/go-os/trace"
 	"github.com/micro/go-plugins/trace/zipkin/thrift/gen-go/zipkincore"
 
+	"log"
+
 	"github.com/apache/thrift/lib/go/thrift"
 	sarama "gopkg.in/Shopify/sarama.v1"
 )
@@ -156,13 +158,17 @@ func (z *zipkin) pub(s *zipkincore.Span, pr sarama.SyncProducer) {
 func (z *zipkin) run() {
 	t := time.NewTicker(z.opts.BatchInterval)
 
-	c, err := sarama.NewClient(z.opts.Collectors, sarama.NewConfig())
+	config := sarama.NewConfig()
+	config.Producer.Return.Successes = true
+	c, err := sarama.NewClient(z.opts.Collectors, config)
 	if err != nil {
+		log.Println("fail to initialize the kafka client: ", err)
 		return
 	}
 
 	p, err := sarama.NewSyncProducerFromClient(c)
 	if err != nil {
+		log.Println("fail to initialize the kafka client: ", err)
 		return
 	}
 
