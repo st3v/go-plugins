@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	pb "github.com/micro/micro/examples/greeter/server/proto/hello"
+	pb "github.com/micro/examples/greeter/server/proto/hello"
 )
 
 // server is used to implement helloworld.GreeterServer.
