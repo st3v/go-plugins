@@ -167,6 +167,7 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 		if err := t.WriteStatus(stream, codes.Unimplemented, fmt.Sprintf("unknown service %v", service)); err != nil {
 			log.Printf("grpc: Server.serveStream failed to write status: %v", err)
 		}
+		return
 	}
 
 	// get grpc metadata
