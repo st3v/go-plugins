@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/transport"
 )
 
@@ -39,6 +40,10 @@ type utpSocket struct {
 	dec     *gob.Decoder
 	encBuf  *bufio.Writer
 	timeout time.Duration
+}
+
+func init() {
+	cmd.DefaultTransports["utp"] = NewTransport
 }
 
 func listen(addr string, fn func(string) (net.Listener, error)) (net.Listener, error) {
