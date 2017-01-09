@@ -19,33 +19,8 @@ func expectedPort(t *testing.T, expected string, lsn transport.Listener) {
 	}
 }
 
-func TestUTPTransportPortRange(t *testing.T) {
-	tp := NewTransport()
-
-	lsn1, err := tp.Listen(":44444-44448")
-	if err != nil {
-		t.Errorf("Did not expect an error, got %s", err)
-	}
-	expectedPort(t, "44444", lsn1)
-
-	lsn2, err := tp.Listen(":44444-44448")
-	if err != nil {
-		t.Errorf("Did not expect an error, got %s", err)
-	}
-	expectedPort(t, "44445", lsn2)
-
-	lsn, err := tp.Listen(":0")
-	if err != nil {
-		t.Errorf("Did not expect an error, got %s", err)
-	}
-
-	lsn.Close()
-	lsn1.Close()
-	lsn2.Close()
-}
-
-func TestUTPTransportCommunication(t *testing.T) {
-	tr := NewTransport()
+func testUTPTransport(t *testing.T, secure bool) {
+	tr := NewTransport(transport.Secure(secure))
 
 	l, err := tr.Listen(":0")
 	if err != nil {
@@ -108,6 +83,31 @@ func TestUTPTransportCommunication(t *testing.T) {
 	}
 
 	close(done)
+}
+
+func TestUTPTransportPortRange(t *testing.T) {
+	tp := NewTransport()
+
+	lsn1, err := tp.Listen(":44444-44448")
+	if err != nil {
+		t.Errorf("Did not expect an error, got %s", err)
+	}
+	expectedPort(t, "44444", lsn1)
+
+	lsn2, err := tp.Listen(":44444-44448")
+	if err != nil {
+		t.Errorf("Did not expect an error, got %s", err)
+	}
+	expectedPort(t, "44445", lsn2)
+
+	lsn, err := tp.Listen(":0")
+	if err != nil {
+		t.Errorf("Did not expect an error, got %s", err)
+	}
+
+	lsn.Close()
+	lsn1.Close()
+	lsn2.Close()
 }
 
 func TestUTPTransportError(t *testing.T) {
@@ -228,4 +228,12 @@ func TestUTPTransportTimeout(t *testing.T) {
 	}
 
 	<-done
+}
+
+func TestUTPTransportCommunication(t *testing.T) {
+	testUTPTransport(t, false)
+}
+
+func TestUTPTransportTLSCommunication(t *testing.T) {
+	testUTPTransport(t, true)
 }
