@@ -75,11 +75,16 @@ func (r *rbroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 		o(&opt)
 	}
 
+	durableQueue := false
+	if opt.Context != nil {
+		durableQueue, _ = opt.Context.Value(durableQueueKey{}).(bool)
+	}
+
 	ch, sub, err := r.conn.Consume(
 		opt.Queue,
 		topic,
 		opt.AutoAck,
-		opt.Context.Value(durableQueueKey{}).(bool),
+		durableQueue,
 	)
 	if err != nil {
 		return nil, err
