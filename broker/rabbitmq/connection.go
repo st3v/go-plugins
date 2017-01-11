@@ -136,14 +136,13 @@ func (r *rabbitMQConn) tryToConnect(secure bool, config *tls.Config) error {
 	return nil
 }
 
-func (r *rabbitMQConn) Consume(queue, key string, autoAck bool,
-	declareDurableQueue bool) (*rabbitMQChannel, <-chan amqp.Delivery, error) {
+func (r *rabbitMQConn) Consume(queue, key string, autoAck, durableQueue bool) (*rabbitMQChannel, <-chan amqp.Delivery, error) {
 	consumerChannel, err := newRabbitChannel(r.Connection)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if declareDurableQueue {
+	if durableQueue {
 		err = consumerChannel.DeclareDurableQueue(queue)
 	} else {
 		err = consumerChannel.DeclareQueue(queue)
