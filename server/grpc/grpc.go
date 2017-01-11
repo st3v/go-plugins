@@ -299,7 +299,13 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 
 		// Unmarshal request
 		if err := codec.Unmarshal(req, argv.Interface()); err != nil {
-			return err
+			statusCode = convertCode(err)
+			statusDesc = err.Error()
+			if err := t.WriteStatus(stream, statusCode, statusDesc); err != nil {
+				log.Printf("grpc: Server.processUnaryRPC failed to write status: %v", err)
+				return err
+			}
+			return nil
 		}
 
 		if argIsValue {
