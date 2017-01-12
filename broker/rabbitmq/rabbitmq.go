@@ -99,7 +99,7 @@ func (r *rbroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 			Header: header,
 			Body:   msg.Body,
 		}
-		handler(&publication{d: msg, m: m, t: topic})
+		handler(&publication{d: msg, m: m, t: msg.RoutingKey})
 	}
 
 	go func() {
