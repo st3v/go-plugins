@@ -8,6 +8,8 @@ import (
 
 	"github.com/anacrolix/utp"
 	"github.com/micro/go-micro/transport"
+	maddr "github.com/micro/misc/lib/addr"
+	mnet "github.com/micro/misc/lib/net"
 	mls "github.com/micro/misc/lib/tls"
 )
 
@@ -66,7 +68,7 @@ func (u *utpTransport) Listen(addr string, opts ...transport.ListenOption) (tran
 				// check if its a valid host:port
 				if host, _, err := net.SplitHostPort(addr); err == nil {
 					if len(host) == 0 {
-						hosts = getIPAddrs()
+						hosts = maddr.IPs()
 					} else {
 						hosts = []string{host}
 					}
@@ -86,9 +88,9 @@ func (u *utpTransport) Listen(addr string, opts ...transport.ListenOption) (tran
 			return tls.NewListener(l, config), nil
 		}
 
-		l, err = listen(addr, fn)
+		l, err = mnet.Listen(addr, fn)
 	} else {
-		l, err = listen(addr, utp.Listen)
+		l, err = mnet.Listen(addr, utp.Listen)
 	}
 
 	if err != nil {
