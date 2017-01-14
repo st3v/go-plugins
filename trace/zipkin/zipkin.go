@@ -84,7 +84,7 @@ func toEndpoint(s *registry.Service) *zipkincore.Endpoint {
 		return nil
 	}
 	ep := zipkincore.NewEndpoint()
-	binary.LittleEndian.PutUint32(addrs[0], (uint32)(ep.Ipv4))
+	ep.Ipv4 = int32(binary.BigEndian.Uint32(addrs[0].To4()))
 	ep.Port = int16(s.Nodes[0].Port)
 	ep.ServiceName = s.Name
 	return ep
