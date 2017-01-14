@@ -84,15 +84,10 @@ func toEndpoint(s *registry.Service) *zipkincore.Endpoint {
 		return nil
 	}
 	ep := zipkincore.NewEndpoint()
-	ep.Ipv4 = int32(ip2int(addrs[0]))
+	ep.Ipv4 = int32(binary.BigEndian.Uint32(addrs[0].To4()))
 	ep.Port = int16(s.Nodes[0].Port)
 	ep.ServiceName = s.Name
 	return ep
-}
-
-// ip2int converts IPv4 to integer.
-func ip2int(ip net.IP) uint32 {
-	return binary.BigEndian.Uint32(ip.To4())
 }
 
 func toThrift(s *trace.Span) *zipkincore.Span {
