@@ -209,5 +209,6 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 
 	return &kBroker{
 		addrs: cAddrs,
+		opts:  options,
 	}
 }
