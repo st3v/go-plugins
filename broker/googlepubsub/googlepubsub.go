@@ -37,26 +37,15 @@ func init() {
 }
 
 func (s *subscriber) run(hdlr broker.Handler) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+
 	for {
 		select {
 		case <-s.exit:
+			cancel()
 			return
 		default:
-			iter, err := s.sub.Pull(ctx)
-			if err != nil {
-				time.Sleep(time.Second)
-				continue
-			}
-			defer iter.Stop()
-
-			// iterate over the messages
-			for {
-				pm, err := iter.Next()
-				if err != nil {
-					break
-				}
-
+			if err := s.sub.Receive(ctx, func(ctx context.Context, pm *pubsub.Message) {
 				// create broker message
 				m := &broker.Message{
 					Header: pm.Attributes,
@@ -77,6 +66,9 @@ func (s *subscriber) run(hdlr broker.Handler) {
 						p.Ack()
 					}
 				}
+			}); err != nil {
+				time.Sleep(time.Second)
+				continue
 			}
 		}
 	}
@@ -102,7 +94,7 @@ func (s *subscriber) Unsubscribe() error {
 }
 
 func (p *publication) Ack() error {
-	p.pm.Done(true)
+	p.pm.Ack()
 	return nil
 }
 
@@ -159,7 +151,8 @@ func (b *pubsubBroker) Publish(topic string, msg *broker.Message, opts ...broker
 		Attributes: msg.Header,
 	}
 
-	_, err = t.Publish(ctx, m)
+	pr := t.Publish(ctx, m)
+	_, err = pr.Get(ctx)
 	return err
 }
 
