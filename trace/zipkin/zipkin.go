@@ -11,6 +11,7 @@ import (
 	"github.com/micro/go-os/trace"
 	"github.com/micro/go-plugins/trace/zipkin/thrift/gen-go/zipkincore"
 
+	"errors"
 	"log"
 
 	"github.com/apache/thrift/lib/go/thrift"
@@ -91,26 +92,17 @@ func toEndpoint(s *registry.Service) *zipkincore.Endpoint {
 }
 
 func toThrift(s *trace.Span) *zipkincore.Span {
-	var span *zipkincore.Span
+	span := &zipkincore.Span{
+		TraceID:   toInt64(s.TraceId),
+		Name:      s.Name,
+		ID:        toInt64(s.Id),
+		Debug:     s.Debug,
+		Timestamp: thrift.Int64Ptr(s.Timestamp.UnixNano() / 1e3),
+		Duration:  thrift.Int64Ptr(s.Duration.Nanoseconds() / 1e3),
+	}
+
 	if parentID := toInt64(s.ParentId); parentID != 0 {
-		span = &zipkincore.Span{
-			TraceID:   toInt64(s.TraceId),
-			Name:      s.Name,
-			ID:        toInt64(s.Id),
-			ParentID:  thrift.Int64Ptr(parentID),
-			Debug:     s.Debug,
-			Timestamp: thrift.Int64Ptr(s.Timestamp.UnixNano() / 1e3),
-			Duration:  thrift.Int64Ptr(s.Duration.Nanoseconds() / 1e3),
-		}
-	} else {
-		span = &zipkincore.Span{
-			TraceID:   toInt64(s.TraceId),
-			Name:      s.Name,
-			ID:        toInt64(s.Id),
-			Debug:     s.Debug,
-			Timestamp: thrift.Int64Ptr(s.Timestamp.UnixNano() / 1e3),
-			Duration:  thrift.Int64Ptr(s.Duration.Nanoseconds() / 1e3),
-		}
+		span.ParentID = thrift.Int64Ptr(parentID)
 	}
 
 	for _, a := range s.Annotations {
@@ -229,7 +221,7 @@ func (z *zipkin) Collect(s *trace.Span) error {
 	select {
 	case z.spans <- s:
 	default:
-		log.Println("z.spans channel is full, discading data")
+		return errors.New("zinpin span channel is full")
 	}
 	return nil
 }
