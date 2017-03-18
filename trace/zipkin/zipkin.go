@@ -221,7 +221,7 @@ func (z *zipkin) Collect(s *trace.Span) error {
 	select {
 	case z.spans <- s:
 	default:
-		return errors.New("zinpin span channel is full")
+		return errors.New("zipkin span channel is full")
 	}
 	return nil
 }
