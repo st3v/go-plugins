@@ -73,6 +73,10 @@ func (m *mockMessage) Payload() []byte {
 	return m.payload.([]byte)
 }
 
+func (m *mockClient) AddRoute(topic string, h mqtt.MessageHandler) {
+	return
+}
+
 func (m *mockClient) IsConnected() bool {
 	m.Lock()
 	defer m.Unlock()
