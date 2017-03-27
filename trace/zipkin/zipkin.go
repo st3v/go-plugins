@@ -11,6 +11,7 @@ import (
 	"github.com/micro/go-os/trace"
 	"github.com/micro/go-plugins/trace/zipkin/thrift/gen-go/zipkincore"
 
+	"errors"
 	"log"
 
 	"github.com/apache/thrift/lib/go/thrift"
@@ -95,10 +96,13 @@ func toThrift(s *trace.Span) *zipkincore.Span {
 		TraceID:   toInt64(s.TraceId),
 		Name:      s.Name,
 		ID:        toInt64(s.Id),
-		ParentID:  thrift.Int64Ptr(toInt64(s.ParentId)),
 		Debug:     s.Debug,
 		Timestamp: thrift.Int64Ptr(s.Timestamp.UnixNano() / 1e3),
 		Duration:  thrift.Int64Ptr(s.Duration.Nanoseconds() / 1e3),
+	}
+
+	if parentID := toInt64(s.ParentId); parentID != 0 {
+		span.ParentID = thrift.Int64Ptr(parentID)
 	}
 
 	for _, a := range s.Annotations {
@@ -117,9 +121,9 @@ func toThrift(s *trace.Span) *zipkincore.Span {
 			case trace.AnnClientResponse:
 				val = zipkincore.CLIENT_RECV
 			case trace.AnnServerRequest:
-				val = zipkincore.SERVER_SEND
-			case trace.AnnServerResponse:
 				val = zipkincore.SERVER_RECV
+			case trace.AnnServerResponse:
+				val = zipkincore.SERVER_SEND
 			default:
 				val = a.Key
 			}
@@ -214,7 +218,11 @@ func (z *zipkin) Close() error {
 }
 
 func (z *zipkin) Collect(s *trace.Span) error {
-	z.spans <- s
+	select {
+	case z.spans <- s:
+	default:
+		return errors.New("zipkin span channel is full")
+	}
 	return nil
 }
 
