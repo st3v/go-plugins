@@ -8,7 +8,7 @@ import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/micro/micro/bot/input"
+	"github.com/micro/go-bot/input"
 )
 
 type discordConn struct {
