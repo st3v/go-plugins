@@ -34,7 +34,7 @@ type consulElected struct {
 
 func (c *consulLeader) Leader() (*registry.Node, error) {
 	kv, _, err := c.c.KV().Get(c.key, nil)
-	if err != nil {
+	if err != nil || kv == nil {
 		return nil, err
 	}
 	var node *registry.Node
