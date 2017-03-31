@@ -76,7 +76,14 @@ func (k *kBroker) Connect() error {
 		return nil
 	}
 
-	c, err := sarama.NewClient(k.addrs, sarama.NewConfig())
+	pconfig := sarama.NewConfig()
+	// For implementation reasons, the SyncProducer requires
+	// `Producer.Return.Errors` and `Producer.Return.Successes`
+	// to be set to true in its configuration.
+	pconfig.Producer.Return.Successes = true
+	pconfig.Producer.Return.Errors = true
+
+	c, err := sarama.NewClient(k.addrs, pconfig)
 	if err != nil {
 		return err
 	}
