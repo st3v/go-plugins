@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/transport"
 )
 
@@ -129,7 +130,7 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 	serviceMethod := strings.Split(stream.Method(), ".")
 	// Ensure 2 parts and not blank
 	if len(serviceMethod) != 2 || len(serviceMethod[0]) == 0 || len(serviceMethod[1]) == 0 {
-		err := t.WriteStatus(stream, codes.InvalidArgument, fmt.Sprintf("malformed method name: %q", stream.Method()))
+		err := t.WriteStatus(stream, status.New(codes.InvalidArgument, fmt.Sprintf("malformed method name: %q", stream.Method())))
 		if err != nil {
 			log.Printf("grpc: Server.serveStream failed to write status: %v", err)
 		}
@@ -141,7 +142,7 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 		// operate on Foo/Bar
 		parts := strings.Split(serviceMethod[1], "/")
 		if len(parts) != 2 {
-			err := t.WriteStatus(stream, codes.InvalidArgument, fmt.Sprintf("malformed method name: %q", stream.Method()))
+			err := t.WriteStatus(stream, status.New(codes.InvalidArgument, fmt.Sprintf("malformed method name: %q", stream.Method())))
 			if err != nil {
 				log.Printf("grpc: Server.serveStream failed to write status: %v", err)
 			}
@@ -156,7 +157,7 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 	service := g.rpc.serviceMap[serviceMethod[0]]
 	g.rpc.mu.Unlock()
 	if service == nil {
-		if err := t.WriteStatus(stream, codes.Unimplemented, fmt.Sprintf("unknown service %v", service)); err != nil {
+		if err := t.WriteStatus(stream, status.New(codes.Unimplemented, fmt.Sprintf("unknown service %v", service))); err != nil {
 			log.Printf("grpc: Server.serveStream failed to write status: %v", err)
 		}
 		return
@@ -164,7 +165,7 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 
 	mtype := service.method[serviceMethod[1]]
 	if mtype == nil {
-		if err := t.WriteStatus(stream, codes.Unimplemented, fmt.Sprintf("unknown service %v", service)); err != nil {
+		if err := t.WriteStatus(stream, status.New(codes.Unimplemented, fmt.Sprintf("unknown service %v", service))); err != nil {
 			log.Printf("grpc: Server.serveStream failed to write status: %v", err)
 		}
 		return
@@ -191,7 +192,7 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 	// get codec
 	codec, err := g.newGRPCCodec(ct)
 	if err != nil {
-		if errr := t.WriteStatus(stream, codes.Internal, err.Error()); errr != nil {
+		if errr := t.WriteStatus(stream, status.New(codes.Internal, err.Error())); errr != nil {
 			log.Printf("grpc: Server.serveStream failed to write status: %v", errr)
 		}
 		return
@@ -245,13 +246,13 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 		if err != nil {
 			switch err := err.(type) {
 			case *rpcError:
-				if err := t.WriteStatus(stream, err.code, err.desc); err != nil {
+				if err := t.WriteStatus(stream, status.New(err.code, err.desc)); err != nil {
 					log.Printf("grpc: Server.processUnaryRPC failed to write status %v", err)
 				}
 			case transport.ConnectionError:
 				// Nothing to do here.
 			case transport.StreamError:
-				if err := t.WriteStatus(stream, err.Code, err.Desc); err != nil {
+				if err := t.WriteStatus(stream, status.New(err.Code, err.Desc)); err != nil {
 					log.Printf("grpc: Server.processUnaryRPC failed to write status %v", err)
 				}
 			default:
@@ -263,11 +264,11 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 		if err := checkRecvPayload(pf, stream.RecvCompress(), nil); err != nil {
 			switch err := err.(type) {
 			case *rpcError:
-				if err := t.WriteStatus(stream, err.code, err.desc); err != nil {
+				if err := t.WriteStatus(stream, status.New(err.code, err.desc)); err != nil {
 					log.Printf("grpc: Server.processUnaryRPC failed to write status %v", err)
 				}
 			default:
-				if err := t.WriteStatus(stream, codes.Internal, err.Error()); err != nil {
+				if err := t.WriteStatus(stream, status.New(codes.Internal, err.Error())); err != nil {
 					log.Printf("grpc: Server.processUnaryRPC failed to write status %v", err)
 				}
 
@@ -283,7 +284,7 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 		if len(req) > defaultMaxMsgSize {
 			statusCode = codes.Internal
 			statusDesc = fmt.Sprintf("grpc: server received a message of %d bytes exceeding %d limit", len(req), defaultMaxMsgSize)
-			return t.WriteStatus(stream, statusCode, statusDesc)
+			return t.WriteStatus(stream, status.New(statusCode, statusDesc))
 		}
 
 		var argv, replyv reflect.Value
@@ -301,7 +302,7 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 		if err := codec.Unmarshal(req, argv.Interface()); err != nil {
 			statusCode = convertCode(err)
 			statusDesc = err.Error()
-			if err := t.WriteStatus(stream, statusCode, statusDesc); err != nil {
+			if err := t.WriteStatus(stream, status.New(statusCode, statusDesc)); err != nil {
 				log.Printf("grpc: Server.processUnaryRPC failed to write status: %v", err)
 				return err
 			}
@@ -352,7 +353,7 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 				statusCode = convertCode(appErr)
 				statusDesc = appErr.Error()
 			}
-			if err := t.WriteStatus(stream, statusCode, statusDesc); err != nil {
+			if err := t.WriteStatus(stream, status.New(statusCode, statusDesc)); err != nil {
 				log.Printf("grpc: Server.processUnaryRPC failed to write status: %v", err)
 				return err
 			}
@@ -375,7 +376,7 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 			}
 			return err
 		}
-		return t.WriteStatus(stream, statusCode, statusDesc)
+		return t.WriteStatus(stream, status.New(statusCode, statusDesc))
 	}
 }
 
@@ -429,7 +430,7 @@ func (g *grpcServer) processStream(t transport.ServerTransport, stream *transpor
 		}
 	}
 
-	return t.WriteStatus(ss.s, ss.statusCode, ss.statusDesc)
+	return t.WriteStatus(ss.s, status.New(ss.statusCode, ss.statusDesc))
 }
 
 func (g *grpcServer) newGRPCCodec(contentType string) (grpc.Codec, error) {
