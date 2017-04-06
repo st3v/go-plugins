@@ -5,6 +5,7 @@ import (
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/cmd"
 	"github.com/streadway/amqp"
+	"golang.org/x/net/context"
 )
 
 type rbroker struct {
@@ -144,13 +145,21 @@ func (r *rbroker) Disconnect() error {
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
-	var options broker.Options
+	options := broker.Options{
+		Context: context.Background(),
+	}
+
 	for _, o := range opts {
 		o(&options)
 	}
 
+	var exchange string
+	if e, ok := options.Context.Value(exchangeKey{}).(string); ok {
+		exchange = e
+	}
+
 	return &rbroker{
-		conn:  newRabbitMQConn("", options.Addrs),
+		conn:  newRabbitMQConn(exchange, options.Addrs),
 		addrs: options.Addrs,
 		opts:  options,
 	}
