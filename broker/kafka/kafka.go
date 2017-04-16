@@ -170,6 +170,10 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 			case err := <-c.Errors():
 				log.Println("consumer error:", err)
 			case sm := <-c.Messages():
+				// ensure message is not nil
+				if sm == nil {
+					continue
+				}
 				var m broker.Message
 				if err := k.opts.Codec.Unmarshal(sm.Value, &m); err != nil {
 					continue
