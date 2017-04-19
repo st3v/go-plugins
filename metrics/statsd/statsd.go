@@ -113,7 +113,25 @@ func (s *statsd) run() {
 	t := time.NewTicker(s.opts.BatchInterval)
 	buf := bytes.NewBuffer(nil)
 
-	conn, _ := net.DialTimeout("udp", s.opts.Collectors[0], time.Second)
+	var conn net.Conn
+
+	for {
+		for _, collector := range s.opts.Collectors {
+			var err error
+
+			conn, err = net.DialTimeout("udp", collector, 1*time.Second)
+			if err == nil {
+				break
+			}
+		}
+
+		if conn != nil {
+			break
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
 	defer conn.Close()
 
 	for {
