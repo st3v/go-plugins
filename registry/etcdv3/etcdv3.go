@@ -106,8 +106,8 @@ func (e *etcdv3Registry) Register(s *registry.Service, opts ...registry.Register
 	//refreshing lease if existing
 	leaseID, ok := e.leases[s.Name]
 	if ok {
-		if rsp := e.client.KeepAliveOnce(context.TODO(), leaseID); rsp.Err != nil {
-			return rsp.Err
+		if _, err := e.client.KeepAliveOnce(context.TODO(), leaseID); err != nil {
+			return err
 		}
 	}
 
