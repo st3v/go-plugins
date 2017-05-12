@@ -2,9 +2,8 @@
 package kafka
 
 import (
-	"log"
-
 	"github.com/Shopify/sarama"
+	"github.com/micro/go-log"
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/broker/codec/json"
 	"github.com/micro/go-micro/cmd"
@@ -168,7 +167,7 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 		for {
 			select {
 			case err := <-c.Errors():
-				log.Println("consumer error:", err)
+				log.Log("consumer error:", err)
 			case sm := <-c.Messages():
 				// ensure message is not nil
 				if sm == nil {

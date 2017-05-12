@@ -3,10 +3,10 @@ package zookeeper
 
 import (
 	"errors"
-	"log"
 	"sync"
 	"time"
 
+	"github.com/micro/go-log"
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
 	"github.com/samuel/go-zookeeper/zk"

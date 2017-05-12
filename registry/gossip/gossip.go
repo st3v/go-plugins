@@ -4,12 +4,12 @@ package gossip
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/micro/go-log"
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
 	"github.com/mitchellh/hashstructure"
@@ -487,6 +487,6 @@ func NewRegistry(opts ...registry.Option) registry.Registry {
 		}
 	}
 
-	log.Printf("Local memberlist node %s:%d\n", m.LocalNode().Addr, m.LocalNode().Port)
+	log.Logf("Local memberlist node %s:%d\n", m.LocalNode().Addr, m.LocalNode().Port)
 	return mr
 }

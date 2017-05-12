@@ -1,9 +1,9 @@
 package grpc
 
 import (
-	"log"
 	"runtime/debug"
 
+	"github.com/micro/go-log"
 	"github.com/micro/go-micro/transport"
 	pb "github.com/micro/go-plugins/transport/grpc/proto"
 )
@@ -20,7 +20,7 @@ func (m *microTransport) Stream(ts pb.Transport_StreamServer) error {
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Print(r, string(debug.Stack()))
+			log.Log(r, string(debug.Stack()))
 			sock.Close()
 		}
 	}()

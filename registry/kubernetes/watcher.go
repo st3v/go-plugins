@@ -3,10 +3,10 @@ package kubernetes
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"strings"
 	"sync"
 
+	"github.com/micro/go-log"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-plugins/registry/kubernetes/client"
 	"github.com/micro/go-plugins/registry/kubernetes/client/watch"
@@ -131,7 +131,7 @@ func (k *k8sWatcher) buildPodResults(pod *client.Pod, cache *client.Pod) []*regi
 func (k *k8sWatcher) handleEvent(event watch.Event) {
 	var pod client.Pod
 	if err := json.Unmarshal([]byte(event.Object), &pod); err != nil {
-		log.Print("K8s Watcher: Couldnt unmarshal event object from pod")
+		log.Log("K8s Watcher: Couldnt unmarshal event object from pod")
 		return
 	}
 

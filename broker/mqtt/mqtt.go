@@ -16,13 +16,13 @@ package mqtt
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/eclipse/paho.mqtt.golang"
+	"github.com/micro/go-log"
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/broker/codec/json"
 	"github.com/micro/go-micro/cmd"
@@ -219,12 +219,12 @@ func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.Su
 	t := m.client.Subscribe(topic, 1, func(c mqtt.Client, mq mqtt.Message) {
 		var msg broker.Message
 		if err := m.opts.Codec.Unmarshal(mq.Payload(), &msg); err != nil {
-			log.Println(err)
+			log.Log(err)
 			return
 		}
 
 		if err := h(&mqttPub{topic: topic, msg: &msg}); err != nil {
-			log.Println(err)
+			log.Log(err)
 		}
 	})
 

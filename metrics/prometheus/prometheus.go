@@ -1,11 +1,11 @@
 package prometheus
 
 import (
-	"log"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/micro/go-log"
 	"github.com/micro/go-os/metrics"
 	pr "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
@@ -160,7 +160,7 @@ func (p *prometheus) run() {
 			p.col = append(p.col, c)
 		case <-t.C:
 			if err := push.AddCollectors(p.opts.Namespace, map[string]string{"host": host}, p.opts.Collectors[0], p.col...); err != nil {
-				log.Print(p.String()+": ", err)
+				log.Logf("%s: %v", p.String(), err)
 			}
 		}
 	}

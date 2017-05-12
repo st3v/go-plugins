@@ -2,12 +2,12 @@
 package ip_whitelist
 
 import (
-	"log"
 	"net"
 	"net/http"
 	"strings"
 
 	"github.com/micro/cli"
+	"github.com/micro/go-log"
 	"github.com/micro/micro/plugin"
 )
 

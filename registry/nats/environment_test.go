@@ -1,10 +1,10 @@
 package nats_test
 
 import (
-	"log"
 	"os"
 	"testing"
 
+	"github.com/micro/go-log"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-plugins/registry/nats"
 )
@@ -27,7 +27,7 @@ var e environment
 func TestMain(m *testing.M) {
 	natsURL := os.Getenv("NATS_URL")
 	if natsURL == "" {
-		log.Printf("NATS_URL is undefined - skipping tests")
+		log.Logf("NATS_URL is undefined - skipping tests")
 		return
 	}
 

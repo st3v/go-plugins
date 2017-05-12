@@ -2,10 +2,10 @@ package etcd
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/coreos/etcd/client"
+	"github.com/micro/go-log"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-os/sync"
 	"github.com/pborman/uuid"

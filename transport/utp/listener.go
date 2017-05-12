@@ -3,10 +3,10 @@ package utp
 import (
 	"bufio"
 	"encoding/gob"
-	"log"
 	"net"
 	"time"
 
+	"github.com/micro/go-log"
 	"github.com/micro/go-micro/transport"
 )
 
@@ -33,7 +33,7 @@ func (u *utpListener) Accept(fn func(transport.Socket)) error {
 				if max := 1 * time.Second; tempDelay > max {
 					tempDelay = max
 				}
-				log.Printf("utp: Accept error: %v; retrying in %v\n", err, tempDelay)
+				log.Logf("utp: Accept error: %v; retrying in %v\n", err, tempDelay)
 				time.Sleep(tempDelay)
 				continue
 			}

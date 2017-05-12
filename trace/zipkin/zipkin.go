@@ -2,17 +2,16 @@ package zipkin
 
 import (
 	"encoding/binary"
+	"errors"
 	"math/rand"
 	"net"
 	"strconv"
 	"time"
 
+	"github.com/micro/go-log"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-os/trace"
 	"github.com/micro/go-plugins/trace/zipkin/thrift/gen-go/zipkincore"
-
-	"errors"
-	"log"
 
 	"github.com/apache/thrift/lib/go/thrift"
 	sarama "gopkg.in/Shopify/sarama.v1"
@@ -166,13 +165,13 @@ func (z *zipkin) run() {
 	config.Producer.Return.Successes = true
 	c, err := sarama.NewClient(z.opts.Collectors, config)
 	if err != nil {
-		log.Println("fail to initialize the kafka client: ", err)
+		log.Log("fail to initialize the kafka client: ", err)
 		return
 	}
 
 	p, err := sarama.NewSyncProducerFromClient(c)
 	if err != nil {
-		log.Println("fail to initialize the kafka client: ", err)
+		log.Log("fail to initialize the kafka client: ", err)
 		return
 	}
 
