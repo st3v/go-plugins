@@ -1,4 +1,4 @@
-// Package gzip is a micro plugin for gzipping http request/response
+// Package gzip is a micro plugin for gzipping http response
 package gzip
 
 import (

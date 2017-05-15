@@ -1,6 +1,6 @@
 # GZIP Plugin
 
-The gzip plugin is a plugin for the micro toolkit which enables gzipping of http request and response
+The gzip plugin is a plugin for the micro toolkit which enables gzipping of http response
 
 ## Usage
 
