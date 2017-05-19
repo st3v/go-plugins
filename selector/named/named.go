@@ -1,11 +1,16 @@
 package named
 
 import (
+	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/selector"
 )
 
 type namedSelector struct{}
+
+func init() {
+	cmd.DefaultSelectors["named"] = NewSelector
+}
 
 func (r *namedSelector) Init(opts ...selector.Option) error {
 	return nil
