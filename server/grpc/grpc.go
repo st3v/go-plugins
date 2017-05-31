@@ -61,7 +61,6 @@ func newGRPCServer(opts ...server.Option) server.Server {
 		handlers:    make(map[string]server.Handler),
 		subscribers: make(map[*subscriber][]broker.Subscriber),
 		exit:        make(chan chan error),
-		wg:          sync.WaitGroup{},
 	}
 }
 
