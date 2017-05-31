@@ -16,22 +16,39 @@ type otWrapper struct {
 	client.Client
 }
 
-func (o *otWrapper) Call(ctx context.Context, req client.Request, rsp interface{}, opts ...client.CallOption) error {
+func traceIntoContext(ctx context.Context, tracer opentracing.Tracer, name string) (context.Context, error) {
 	md, _ := metadata.FromContext(ctx)
-	name := fmt.Sprintf("%s.%s", req.Service(), req.Method())
 	var sp opentracing.Span
-	wireContext, err := o.ot.Extract(opentracing.TextMap, opentracing.TextMapCarrier(md))
+	wireContext, err := tracer.Extract(opentracing.TextMap, opentracing.TextMapCarrier(md))
 	if err != nil {
-		sp = o.ot.StartSpan(name)
+		sp = tracer.StartSpan(name)
 	} else {
-		sp = o.ot.StartSpan(name, opentracing.ChildOf(wireContext))
+		sp = tracer.StartSpan(name, opentracing.ChildOf(wireContext))
 	}
 	defer sp.Finish()
 	if err := sp.Tracer().Inject(sp.Context(), opentracing.TextMap, opentracing.TextMapCarrier(md)); err != nil {
-		return err
+		return nil, err
 	}
 	ctx = metadata.NewContext(ctx, md)
+	return ctx, nil
+}
+
+func (o *otWrapper) Call(ctx context.Context, req client.Request, rsp interface{}, opts ...client.CallOption) error {
+	name := fmt.Sprintf("%s.%s", req.Service(), req.Method())
+	ctx, err := traceIntoContext(ctx, o.ot, name)
+	if err != nil {
+		return err
+	}
 	return o.Client.Call(ctx, req, rsp, opts...)
+}
+
+func (o *otWrapper) Publish(ctx context.Context, p client.Publication, opts ...client.PublishOption) error {
+	name := fmt.Sprintf("Pub to %s", p.Topic())
+	ctx, err := traceIntoContext(ctx, o.ot, name)
+	if err != nil {
+		return err
+	}
+	return o.Client.Publish(ctx, p, opts...)
 }
 
 // NewClientWrapper accepts an open tracing Trace and returns a Client Wrapper
@@ -45,21 +62,26 @@ func NewClientWrapper(ot opentracing.Tracer) client.Wrapper {
 func NewHandlerWrapper(ot opentracing.Tracer) server.HandlerWrapper {
 	return func(h server.HandlerFunc) server.HandlerFunc {
 		return func(ctx context.Context, req server.Request, rsp interface{}) error {
-			md, _ := metadata.FromContext(ctx)
 			name := fmt.Sprintf("%s.%s", req.Service(), req.Method())
-			var sp opentracing.Span
-			wireContext, err := ot.Extract(opentracing.TextMap, opentracing.TextMapCarrier(md))
+			ctx, err := traceIntoContext(ctx, ot, name)
 			if err != nil {
-				sp = ot.StartSpan(name)
-			} else {
-				sp = ot.StartSpan(name, opentracing.ChildOf(wireContext))
-			}
-			defer sp.Finish()
-			if err := sp.Tracer().Inject(sp.Context(), opentracing.TextMap, opentracing.TextMapCarrier(md)); err != nil {
 				return err
 			}
-			ctx = metadata.NewContext(ctx, md)
 			return h(ctx, req, rsp)
+		}
+	}
+}
+
+//NewSubscriberWrapper accepts an opentracing Tracer and returns a Subscriber Wrapper
+func NewSubscriberWrapper(ot opentracing.Tracer) server.SubscriberWrapper {
+	return func(next server.SubscriberFunc) server.SubscriberFunc {
+		return func(ctx context.Context, msg server.Publication) error {
+			name := "Pub to " + msg.Topic()
+			ctx, err := traceIntoContext(ctx, ot, name)
+			if err != nil {
+				return err
+			}
+			return next(ctx, msg)
 		}
 	}
 }
