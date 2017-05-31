@@ -37,6 +37,7 @@ const (
 type grpcServer struct {
 	rpc  *rServer
 	exit chan chan error
+	wg   sync.WaitGroup
 
 	sync.RWMutex
 	opts        server.Options
@@ -60,6 +61,7 @@ func newGRPCServer(opts ...server.Option) server.Server {
 		handlers:    make(map[string]server.Handler),
 		subscribers: make(map[*subscriber][]broker.Subscriber),
 		exit:        make(chan chan error),
+		wg:          sync.WaitGroup{},
 	}
 }
 
@@ -109,6 +111,7 @@ func (g *grpcServer) accept(conn net.Conn) {
 	var wg sync.WaitGroup
 	st.HandleStreams(func(stream *transport.Stream) {
 		wg.Add(1)
+		g.wg.Add(1)
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
@@ -118,6 +121,7 @@ func (g *grpcServer) accept(conn net.Conn) {
 
 			g.serveStream(st, stream)
 			wg.Done()
+			g.wg.Done()
 		}()
 	}, func(ctx context.Context, method string) context.Context {
 		return ctx
@@ -693,8 +697,18 @@ func (g *grpcServer) Start() error {
 	go g.serve(ts)
 
 	go func() {
+		// wait for exit
 		ch := <-g.exit
+
+		// wait for waitgroup
+		if wait(g.opts.Context) {
+			g.wg.Wait()
+		}
+
+		// close transport
 		ch <- ts.Close()
+
+		// disconnect broker
 		config.Broker.Disconnect()
 	}()
 
