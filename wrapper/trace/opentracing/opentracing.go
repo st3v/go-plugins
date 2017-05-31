@@ -72,7 +72,7 @@ func NewHandlerWrapper(ot opentracing.Tracer) server.HandlerWrapper {
 	}
 }
 
-//NewSubscriberWrapper accepts an opentracing Tracer and returns a Subscriber Wrapper
+// NewSubscriberWrapper accepts an opentracing Tracer and returns a Subscriber Wrapper
 func NewSubscriberWrapper(ot opentracing.Tracer) server.SubscriberWrapper {
 	return func(next server.SubscriberFunc) server.SubscriberFunc {
 		return func(ctx context.Context, msg server.Publication) error {
