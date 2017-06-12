@@ -113,14 +113,15 @@ func (g *grpcServer) accept(conn net.Conn) {
 		g.wg.Add(1)
 		go func() {
 			defer func() {
+				wg.Done()
+				g.wg.Done()
+
 				if r := recover(); r != nil {
 					log.Log(r, string(debug.Stack()))
 				}
 			}()
 
 			g.serveStream(st, stream)
-			wg.Done()
-			g.wg.Done()
 		}()
 	}, func(ctx context.Context, method string) context.Context {
 		return ctx

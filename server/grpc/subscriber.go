@@ -229,12 +229,12 @@ func (g *grpcServer) createSubHandler(sb *subscriber, opts server.Options) broke
 
 			g.wg.Add(1)
 			go func() {
+				defer g.wg.Done()
 				fn(ctx, &rpcPublication{
 					topic:       sb.topic,
 					contentType: ct,
 					message:     req.Interface(),
 				})
-				g.wg.Done()
 			}()
 		}
 		return nil
