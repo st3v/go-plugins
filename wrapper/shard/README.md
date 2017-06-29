@@ -19,3 +19,12 @@ service := micro.NewService(
 	micro.WrapClient(wrapper),
 )
 ```
+
+Alternatively wrap the client and use independently
+
+```
+wrapper := shard.NewClientWrapper("X-From-Session")
+
+client := wrapper(service.Client())
+```
+
