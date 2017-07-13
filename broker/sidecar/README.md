@@ -2,7 +2,7 @@
 
 This is a broker plugin for the micro [sidecar](https://github.com/micro/micro/tree/master/car)
 
-## Usage
+## Usage
 
 Here's a simple usage guide
 
