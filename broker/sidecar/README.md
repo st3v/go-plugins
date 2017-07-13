@@ -4,6 +4,8 @@ This is a broker plugin for the micro [sidecar](https://github.com/micro/micro/t
 
 ## Usage
 
+Here's a simple usage guide
+
 ### Run Sidecar
 
 ```
