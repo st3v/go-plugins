@@ -27,6 +27,7 @@ import (
 type grpcClient struct {
 	once sync.Once
 	opts client.Options
+	pool *pool
 }
 
 var (
@@ -60,16 +61,19 @@ func (g *grpcClient) call(ctx context.Context, address string, req client.Reques
 
 	var grr error
 	// TODO: do not use insecure
-	cc, err := grpc.Dial(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout), grpc.WithInsecure())
+	cc, err := g.pool.getConn(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout), grpc.WithInsecure())
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", fmt.Sprintf("Error sending request: %v", err))
 	}
-	defer cc.Close()
+	defer func() {
+		// defer execution of release
+		g.pool.release(address, cc, grr)
+	}()
 
 	ch := make(chan error, 1)
 
 	go func() {
-		ch <- grpc.Invoke(ctx, methodToGRPC(req.Method(), req.Request()), req.Request(), rsp, cc)
+		ch <- grpc.Invoke(ctx, methodToGRPC(req.Method(), req.Request()), req.Request(), rsp, cc.cc)
 	}()
 
 	select {
@@ -466,6 +470,7 @@ func newClient(opts ...client.Option) client.Client {
 	rc := &grpcClient{
 		once: sync.Once{},
 		opts: options,
+		pool: newPool(options.PoolSize, options.PoolTTL),
 	}
 
 	c := client.Client(rc)
