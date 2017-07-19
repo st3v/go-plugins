@@ -19,7 +19,6 @@ import (
 	meta "github.com/micro/go-micro/metadata"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/server"
-	//"github.com/micro/go-micro/transport"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
