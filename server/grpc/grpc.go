@@ -16,6 +16,7 @@ import (
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/codec"
+	"github.com/micro/go-micro/errors"
 	meta "github.com/micro/go-micro/metadata"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/server"
@@ -361,6 +362,9 @@ func (g *grpcServer) processRequest(t transport.ServerTransport, stream *transpo
 			if err, ok := appErr.(*rpcError); ok {
 				statusCode = err.code
 				statusDesc = err.desc
+			} else if err, ok := appErr.(*errors.Error); ok {
+				statusCode = microError(err)
+				statusDesc = appErr.Error()
 			} else {
 				statusCode = convertCode(appErr)
 				statusDesc = appErr.Error()
@@ -433,6 +437,9 @@ func (g *grpcServer) processStream(t transport.ServerTransport, stream *transpor
 		if err, ok := appErr.(*rpcError); ok {
 			ss.statusCode = err.code
 			ss.statusDesc = err.desc
+		} else if err, ok := appErr.(*errors.Error); ok {
+			ss.statusCode = microError(err)
+			ss.statusDesc = appErr.Error()
 		} else if err, ok := appErr.(transport.StreamError); ok {
 			ss.statusCode = err.Code
 			ss.statusDesc = err.Desc
