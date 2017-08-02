@@ -183,10 +183,6 @@ func (e *etcdv3Registry) GetService(name string) ([]*registry.Service, error) {
 		return nil, err
 	}
 
-	if len(rsp.Kvs) == 0 {
-		return nil, registry.ErrNotFound
-	}
-
 	serviceMap := map[string]*registry.Service{}
 
 	for _, n := range rsp.Kvs {
