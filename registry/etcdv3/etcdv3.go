@@ -20,8 +20,7 @@ import (
 )
 
 var (
-	prefix      = "/micro-registry"
-	cachePrefix = "/micro-cache"
+	prefix = "/micro-registry"
 )
 
 type etcdv3Registry struct {
@@ -73,24 +72,7 @@ func (e *etcdv3Registry) Deregister(s *registry.Service) error {
 	defer cancel()
 
 	for _, node := range s.Nodes {
-		// cache the value for the watcher
-		resp, err := e.client.Get(ctx, nodePath(s.Name, node.Id))
-		if err != nil {
-			return err
-		}
-
-		for _, ev := range resp.Kvs {
-			lrsp, err := e.client.Grant(ctx, 5)
-			if err != nil {
-				return err
-			}
-			_, err = e.client.Put(ctx, path.Join(cachePrefix, string(ev.Key)), string(ev.Value), clientv3.WithLease(lrsp.ID))
-			if err != nil {
-				return err
-			}
-		}
-
-		_, err = e.client.Delete(ctx, nodePath(s.Name, node.Id))
+		_, err := e.client.Delete(ctx, nodePath(s.Name, node.Id))
 		if err != nil {
 			return err
 		}
@@ -181,6 +163,10 @@ func (e *etcdv3Registry) GetService(name string) ([]*registry.Service, error) {
 	rsp, err := e.client.Get(ctx, servicePath(name)+"/", clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortDescend))
 	if err != nil {
 		return nil, err
+	}
+
+	if len(rsp.Kvs) == 0 {
+		return nil, registry.ErrNotFound
 	}
 
 	serviceMap := map[string]*registry.Service{}
