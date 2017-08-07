@@ -2,7 +2,6 @@ package etcdv3
 
 import (
 	"errors"
-	"path"
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
@@ -28,7 +27,7 @@ func newEtcdv3Watcher(r *etcdv3Registry, timeout time.Duration) (registry.Watche
 
 	return &etcdv3Watcher{
 		stop:    stop,
-		w:       r.client.Watch(ctx, prefix, clientv3.WithPrefix()),
+		w:       r.client.Watch(ctx, prefix, clientv3.WithPrefix(), clientv3.WithPrevKV()),
 		client:  r.client,
 		timeout: timeout,
 	}, nil
@@ -53,20 +52,10 @@ func (ew *etcdv3Watcher) Next() (*registry.Result, error) {
 			case clientv3.EventTypeDelete:
 				action = "delete"
 
-				// get the cached value
-				ctx, cancel := context.WithTimeout(context.Background(), ew.timeout)
-				defer cancel()
-
-				resp, err := ew.client.Get(ctx, path.Join(cachePrefix, string(ev.Kv.Key)))
-				if err != nil {
-					return nil, err
-				}
-
-				for _, ev := range resp.Kvs {
-					service = decode(ev.Value)
-				}
-
+				// get service from prevKv
+				service = decode(ev.PrevKv.Value)
 			}
+
 			if service == nil {
 				continue
 			}
