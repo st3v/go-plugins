@@ -64,7 +64,7 @@ func TestTryToConnectTLS(t *testing.T) {
 		dialCount, dialTLSCount = 0, 0
 
 		conn := newRabbitMQConn("exchange", []string{test.url})
-		conn.tryToConnect(test.secure, test.tlsConfig)
+		conn.tryConnect(test.secure, test.tlsConfig)
 
 		have := dialCount
 		if test.wantTLS {

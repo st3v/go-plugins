@@ -135,13 +135,11 @@ func (r *rbroker) Init(opts ...broker.Option) error {
 }
 
 func (r *rbroker) Connect() error {
-	<-r.conn.Init(r.opts.Secure, r.opts.TLSConfig)
-	return nil
+	return r.conn.Connect(r.opts.Secure, r.opts.TLSConfig)
 }
 
 func (r *rbroker) Disconnect() error {
-	r.conn.Close()
-	return nil
+	return r.conn.Close()
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {

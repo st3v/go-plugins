@@ -26,15 +26,12 @@ type rabbitMQConn struct {
 	Connection      *amqp.Connection
 	Channel         *rabbitMQChannel
 	ExchangeChannel *rabbitMQChannel
-	notify          chan bool
 	exchange        string
 	url             string
 
+	sync.Mutex
 	connected bool
-
-	mtx    sync.Mutex
-	close  chan bool
-	closed bool
+	close     chan bool
 }
 
 func newRabbitMQConn(exchange string, urls []string) *rabbitMQConn {
@@ -53,59 +50,99 @@ func newRabbitMQConn(exchange string, urls []string) *rabbitMQConn {
 	return &rabbitMQConn{
 		exchange: exchange,
 		url:      url,
-		notify:   make(chan bool, 1),
 		close:    make(chan bool),
 	}
 }
 
-func (r *rabbitMQConn) Init(secure bool, config *tls.Config) chan bool {
-	go r.Connect(secure, config, r.notify)
-	return r.notify
+func (r *rabbitMQConn) connect(secure bool, config *tls.Config) error {
+	// try connect
+	if err := r.tryConnect(secure, config); err != nil {
+		return err
+	}
+
+	// connected
+	r.Lock()
+	r.connected = true
+	r.Unlock()
+
+	// create reconnect loop
+	go r.reconnect(secure, config)
+	return nil
 }
 
-func (r *rabbitMQConn) Connect(secure bool, config *tls.Config, connected chan bool) {
+func (r *rabbitMQConn) reconnect(secure bool, config *tls.Config) {
+	// skip first connect
+	var connect bool
+
 	for {
-		if err := r.tryToConnect(secure, config); err != nil {
-			time.Sleep(1 * time.Second)
-			continue
+		if connect {
+			// try reconnect
+			if err := r.tryConnect(secure, config); err != nil {
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			// connected
+			r.Lock()
+			r.connected = true
+			r.Unlock()
 		}
-		connected <- true
-		r.connected = true
+
+		connect = true
 		notifyClose := make(chan *amqp.Error)
 		r.Connection.NotifyClose(notifyClose)
 
-		// Block until we get disconnected, or shut down
+		// block until closed
 		select {
 		case <-notifyClose:
-			// Spin around and reconnect
+			r.Lock()
 			r.connected = false
+			r.Unlock()
 		case <-r.close:
-			// Shut down connection
-			if err := r.Connection.Close(); err != nil {
-			}
-			r.connected = false
 			return
 		}
 	}
 }
 
-func (r *rabbitMQConn) IsConnected() bool {
-	return r.connected
-}
+func (r *rabbitMQConn) Connect(secure bool, config *tls.Config) error {
+	r.Lock()
 
-func (r *rabbitMQConn) Close() {
-	r.mtx.Lock()
-	defer r.mtx.Unlock()
-
-	if r.closed {
-		return
+	// already connected
+	if r.connected {
+		r.Unlock()
+		return nil
 	}
 
-	close(r.close)
-	r.closed = true
+	// check it was closed
+	select {
+	case <-r.close:
+		r.close = make(chan bool)
+	default:
+		// no op
+		// new conn
+	}
+
+	r.Unlock()
+
+	return r.connect(secure, config)
 }
 
-func (r *rabbitMQConn) tryToConnect(secure bool, config *tls.Config) error {
+func (r *rabbitMQConn) Close() error {
+	r.Lock()
+	defer r.Unlock()
+
+	select {
+	case <-r.close:
+		return nil
+	default:
+		close(r.close)
+		r.connected = false
+	}
+
+	return r.Connection.Close()
+}
+
+func (r *rabbitMQConn) tryConnect(secure bool, config *tls.Config) error {
 	var err error
 
 	if secure || config != nil || strings.HasPrefix(r.url, "amqps://") {
@@ -124,16 +161,15 @@ func (r *rabbitMQConn) tryToConnect(secure bool, config *tls.Config) error {
 	if err != nil {
 		return err
 	}
-	r.Channel, err = newRabbitChannel(r.Connection)
-	if err != nil {
+
+	if r.Channel, err = newRabbitChannel(r.Connection); err != nil {
 		return err
 	}
+
 	r.Channel.DeclareExchange(r.exchange)
 	r.ExchangeChannel, err = newRabbitChannel(r.Connection)
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return err
 }
 
 func (r *rabbitMQConn) Consume(queue, key string, autoAck, durableQueue bool) (*rabbitMQChannel, <-chan amqp.Delivery, error) {
