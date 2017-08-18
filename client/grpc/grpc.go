@@ -52,7 +52,7 @@ func (g *grpcClient) call(ctx context.Context, address string, req client.Reques
 	header["x-content-type"] = req.ContentType()
 
 	md := gmetadata.New(header)
-	ctx = gmetadata.NewContext(ctx, md)
+	ctx = gmetadata.NewOutgoingContext(ctx, md)
 
 	cf, err := g.newGRPCCodec(req.ContentType())
 	if err != nil {
@@ -101,7 +101,7 @@ func (g *grpcClient) stream(ctx context.Context, address string, req client.Requ
 	header["x-content-type"] = req.ContentType()
 
 	md := gmetadata.New(header)
-	ctx = gmetadata.NewContext(ctx, md)
+	ctx = gmetadata.NewOutgoingContext(ctx, md)
 
 	cf, err := g.newGRPCCodec(req.ContentType())
 	if err != nil {

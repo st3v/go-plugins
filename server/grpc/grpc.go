@@ -185,7 +185,7 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 	}
 
 	// get grpc metadata
-	gmd, ok := metadata.FromContext(stream.Context())
+	gmd, ok := metadata.FromIncomingContext(stream.Context())
 	if !ok {
 		gmd = metadata.MD{}
 	}
