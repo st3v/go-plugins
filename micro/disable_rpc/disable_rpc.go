@@ -8,7 +8,7 @@ import (
 	"github.com/micro/micro/plugin"
 )
 
-type disable_rpc struct {}
+type disable_rpc struct{}
 
 func (i *disable_rpc) Flags() []cli.Flag {
 	return nil
