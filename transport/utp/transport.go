@@ -2,6 +2,7 @@ package utp
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"encoding/gob"
 	"net"
@@ -22,7 +23,8 @@ func (u *utpTransport) Dial(addr string, opts ...transport.DialOption) (transpor
 		opt(&dopts)
 	}
 
-	c, err := utp.DialTimeout(addr, dopts.Timeout)
+	ctx, _ := context.WithTimeout(context.Background(), dopts.Timeout)
+	c, err := utp.DialContext(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
