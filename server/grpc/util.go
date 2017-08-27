@@ -44,6 +44,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/transport"
 )
 
@@ -108,47 +109,49 @@ func (p *parser) recvMsg(maxMsgSize int) (pf payloadFormat, msg []byte, err erro
 
 // encode serializes msg and prepends the message header. If msg is nil, it
 // generates the message header of 0 message length.
-func encode(c grpc.Codec, msg interface{}, cp grpc.Compressor, cbuf *bytes.Buffer) ([]byte, error) {
+func encode(c grpc.Codec, msg interface{}, cp grpc.Compressor, cbuf *bytes.Buffer, outPayload *stats.OutPayload) ([]byte, []byte, error) {
 	var b []byte
-	var length uint
-	if msg != nil {
-		var err error
-		// TODO(zhaoq): optimize to reduce memory alloc and copying.
-		b, err = c.Marshal(msg)
-		if err != nil {
-			return nil, err
-		}
-		if cp != nil {
-			if err := cp.Do(cbuf, b); err != nil {
-				return nil, err
-			}
-			b = cbuf.Bytes()
-		}
-		length = uint(len(b))
-	}
-	if length > math.MaxUint32 {
-		return nil, Errorf(codes.InvalidArgument, "grpc: message too large (%d bytes)", length)
-	}
-
 	const (
 		payloadLen = 1
 		sizeLen    = 4
 	)
 
-	var buf = make([]byte, payloadLen+sizeLen+len(b))
+	if msg != nil {
+		var err error
+		b, err = c.Marshal(msg)
+		if err != nil {
+			return nil, nil, Errorf(codes.Internal, "grpc: error while marshaling: %v", err.Error())
+		}
+		if outPayload != nil {
+			outPayload.Payload = msg
+			// TODO truncate large payload.
+			outPayload.Data = b
+			outPayload.Length = len(b)
+		}
+		if cp != nil {
+			if err := cp.Do(cbuf, b); err != nil {
+				return nil, nil, Errorf(codes.Internal, "grpc: error while compressing: %v", err.Error())
+			}
+			b = cbuf.Bytes()
+		}
+	}
 
-	// Write payload format
+	if len(b) > math.MaxUint32 {
+		return nil, nil, Errorf(codes.ResourceExhausted, "grpc: message too large (%d bytes)", len(b))
+	}
+
+	bufHeader := make([]byte, payloadLen+sizeLen)
 	if cp == nil {
-		buf[0] = byte(compressionNone)
+		bufHeader[0] = byte(compressionNone)
 	} else {
-		buf[0] = byte(compressionMade)
+		bufHeader[0] = byte(compressionMade)
 	}
 	// Write length of b into buf
-	binary.BigEndian.PutUint32(buf[1:], uint32(length))
-	// Copy encoded msg to buf
-	copy(buf[5:], b)
-
-	return buf, nil
+	binary.BigEndian.PutUint32(bufHeader[payloadLen:], uint32(len(b)))
+	if outPayload != nil {
+		outPayload.WireLength = payloadLen + sizeLen + len(b)
+	}
+	return bufHeader, b, nil
 }
 
 func checkRecvPayload(pf payloadFormat, recvCompress string, dc grpc.Decompressor) error {
