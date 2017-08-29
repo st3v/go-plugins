@@ -7,11 +7,12 @@ import (
 
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/cmd"
 	"golang.org/x/net/context"
-	"time"
 )
 
 const (
@@ -139,7 +140,7 @@ func (s *subscriber) Options() broker.SubscribeOptions {
 }
 
 func (s *subscriber) Topic() string {
-	return s.URL
+	return s.queueName
 }
 
 func (s *subscriber) Unsubscribe() error {

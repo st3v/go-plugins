@@ -5,12 +5,12 @@ Amazon Simple Queue Service broker plugin for `go-micro` allows you to publish a
 This plugin uses the official Go SDK for AWS. As such, it will obtain AWS credentials the same way all other `aws-go-sdk` applications do. The plugin explicitly allows the use of the shared credentials file to make development on workstations easier, but you can also supply the usual `AWS_*` environment variables in dev/test/prod environments. Also if you're deploying in EC2/ECS, the `IAM Role` will be picked up automatically and you won't need to supply any credentials.
 
 ## Publishing and Subscribing
-Publishing and subscribing with the plugin should work just like all other brokers. The main difference is that the URL is a fully-qualified URL to an SQS queue:
+Publishing and subscribing with the plugin should work just like all other brokers. Simply supply the name of the queue in the publish or subscribe arguments:
 
 ```go
-broker.Publish("https://sqs.us-east-1.amazonaws.com/1234/queue.fifo", msg)
+broker.Publish("queue.fifo", msg)
 ...
-broker.Subscribe("https://sqs.us-east-1.amazonaws.com/1234/queue.fifo", subscriberFunc)
+broker.Subscribe("queue.fifo", subscriberFunc)
 ```
 
 ## Options
@@ -42,7 +42,7 @@ func groupid(m *broker.Message) string {
 How you choose to generate group IDs and deduplication IDs is entirely up to you, though the easiest way is to simply store those identifiers in the message header and then return them in the generator function:
 
 ```
-return m.Header["dedup_id"]
+return m.Header["dedupid"]
 ```
 
 This plugin is under active development and will likely get more configurable options and features in the near future.
