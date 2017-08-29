@@ -5,6 +5,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 
+	"errors"
+	"fmt"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/cmd"
 	"golang.org/x/net/context"
@@ -26,18 +29,20 @@ type sqsBroker struct {
 
 // A subscriber (poller) to an SQS queue
 type subscriber struct {
-	options broker.SubscribeOptions
-	svc     *sqs.SQS
-	URL     string
-	exit    chan bool
+	options   broker.SubscribeOptions
+	queueName string
+	svc       *sqs.SQS
+	URL       string
+	exit      chan bool
 }
 
 // A wrapper around a message published on an SQS queue and delivered via subscriber
 type publication struct {
-	sMessage *sqs.Message
-	svc      *sqs.SQS
-	m        *broker.Message
-	URL      string
+	sMessage  *sqs.Message
+	svc       *sqs.SQS
+	m         *broker.Message
+	URL       string
+	queueName string
 }
 
 func init() {
@@ -47,6 +52,7 @@ func init() {
 // run is designed to run as a goroutine and poll SQS for new messages. Note that it's possible to receive
 // more than one message from a single poll depending on the options configured for the plugin
 func (s *subscriber) run(hdlr broker.Handler) {
+	fmt.Printf("Broker subscription started: %s\n", s.URL)
 	for {
 		select {
 		case <-s.exit:
@@ -67,6 +73,7 @@ func (s *subscriber) run(hdlr broker.Handler) {
 
 			if err != nil {
 				time.Sleep(time.Second)
+				fmt.Println(err)
 				continue
 			}
 			if len(result.Messages) == 0 {
@@ -112,16 +119,18 @@ func (s *subscriber) handleMessage(msg *sqs.Message, hdlr broker.Handler) {
 	}
 
 	p := &publication{
-		sMessage: msg,
-		m:        m,
-		URL:      s.URL,
-		svc:      s.svc,
+		sMessage:  msg,
+		m:         m,
+		URL:       s.URL,
+		queueName: s.queueName,
+		svc:       s.svc,
 	}
 
-	if err := hdlr(p); err == nil {
-		if s.options.AutoAck {
-			p.Ack()
-		}
+	if err := hdlr(p); err != nil {
+		fmt.Println(err)
+	}
+	if s.options.AutoAck {
+		p.Ack()
 	}
 }
 
@@ -152,7 +161,7 @@ func (p *publication) Ack() error {
 }
 
 func (p *publication) Topic() string {
-	return p.URL
+	return p.queueName
 }
 
 func (p *publication) Message() *broker.Message {
@@ -196,7 +205,12 @@ func (b *sqsBroker) Init(opts ...broker.Option) error {
 }
 
 // Publish publishes a message via SQS
-func (b *sqsBroker) Publish(queueURL string, msg *broker.Message, opts ...broker.PublishOption) error {
+func (b *sqsBroker) Publish(queueName string, msg *broker.Message, opts ...broker.PublishOption) error {
+	queueURL, err := b.urlFromQueueName(queueName)
+	if err != nil {
+		return err
+	}
+
 	input := &sqs.SendMessageInput{
 		MessageBody: aws.String(string(msg.Body[:])),
 		QueueUrl:    &queueURL,
@@ -205,7 +219,7 @@ func (b *sqsBroker) Publish(queueURL string, msg *broker.Message, opts ...broker
 	input.MessageDeduplicationId = b.generateDedupID(msg)
 	input.MessageGroupId = b.generateGroupID(msg)
 
-	_, err := b.svc.SendMessage(input)
+	_, err = b.svc.SendMessage(input)
 
 	if err != nil {
 		return err
@@ -215,11 +229,16 @@ func (b *sqsBroker) Publish(queueURL string, msg *broker.Message, opts ...broker
 	return nil
 }
 
-// Subscribe subsribes to an SQS queue, starting a goroutine to poll for messages
-func (b *sqsBroker) Subscribe(queueURL string, h broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+// Subscribe subscribes to an SQS queue, starting a goroutine to poll for messages
+func (b *sqsBroker) Subscribe(queueName string, h broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	queueURL, err := b.urlFromQueueName(queueName)
+	if err != nil {
+		return nil, err
+	}
+
 	options := broker.SubscribeOptions{
 		AutoAck: true,
-		Queue:   queueURL,
+		Queue:   queueName,
 		Context: context.Background(),
 	}
 
@@ -228,14 +247,28 @@ func (b *sqsBroker) Subscribe(queueURL string, h broker.Handler, opts ...broker.
 	}
 
 	subscriber := &subscriber{
-		options: options,
-		URL:     queueURL,
-		svc:     b.svc,
-		exit:    make(chan bool),
+		options:   options,
+		URL:       queueURL,
+		queueName: queueName,
+		svc:       b.svc,
+		exit:      make(chan bool),
 	}
 	go subscriber.run(h)
 
 	return subscriber, nil
+}
+
+func (b *sqsBroker) urlFromQueueName(queueName string) (string, error) {
+	resultURL, err := b.svc.GetQueueUrl(&sqs.GetQueueUrlInput{
+		QueueName: aws.String(queueName),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == sqs.ErrCodeQueueDoesNotExist {
+			return "", errors.New(fmt.Sprintf("Unable to find queue %s", queueName))
+		}
+		return "", errors.New(fmt.Sprintf("Unable to determine URL for queue %s", queueName))
+	}
+	return *resultURL.QueueUrl, nil
 }
 
 // String returns the name of the broker plugin
