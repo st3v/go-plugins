@@ -1,6 +1,8 @@
 package googlepubsub
 
 import (
+	"time"
+
 	"github.com/micro/go-micro/broker"
 	"golang.org/x/net/context"
 	"google.golang.org/api/option"
@@ -9,6 +11,10 @@ import (
 type clientOptionKey struct{}
 
 type projectIDKey struct{}
+
+type maxOutstandingMessagesKey struct{}
+
+type maxExtensionKey struct{}
 
 // ClientOption is a broker Option which allows google pubsub client options to be
 // set for the client
@@ -28,5 +34,29 @@ func ProjectID(id string) broker.Option {
 			o.Context = context.Background()
 		}
 		o.Context = context.WithValue(o.Context, projectIDKey{}, id)
+	}
+}
+
+// MaxOutstandingMessages sets the maximum number of unprocessed messages
+// (unacknowledged but not yet expired) to receive.
+func MaxOutstandingMessages(max int) broker.SubscribeOption {
+	return func(o *broker.SubscribeOptions) {
+		if o.Context == nil {
+			o.Context = context.Background()
+		}
+
+		o.Context = context.WithValue(o.Context, maxOutstandingMessagesKey{}, max)
+	}
+}
+
+// MaxExtension is the maximum period for which the Subscription should
+// automatically extend the ack deadline for each message.
+func MaxExtension(d time.Duration) broker.SubscribeOption {
+	return func(o *broker.SubscribeOptions) {
+		if o.Context == nil {
+			o.Context = context.Background()
+		}
+
+		o.Context = context.WithValue(o.Context, maxExtensionKey{}, d)
 	}
 }
