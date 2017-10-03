@@ -84,12 +84,9 @@ func (c *msgpackCodec) ReadBody(v interface{}) error {
 	switch c.mt {
 	case codec.Request, codec.Response, codec.Publication:
 		return decodeBody(r, v)
-
 	default:
 		return fmt.Errorf("Unrecognized message type: %v", c.mt)
 	}
-
-	return nil
 }
 
 // Write writes a message to the wire which contains the header followed by the body.
@@ -126,8 +123,6 @@ func (c *msgpackCodec) Write(m *codec.Message, b interface{}) error {
 	default:
 		return fmt.Errorf("Unrecognized message type: %v", m.Type)
 	}
-
-	return nil
 }
 
 func NewCodec(rwc io.ReadWriteCloser) codec.Codec {

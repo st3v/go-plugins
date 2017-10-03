@@ -220,7 +220,7 @@ func (b *redisBroker) Subscribe(topic string, handler broker.Handler, opts ...br
 
 	s := subscriber{
 		codec:  b.opts.Codec,
-		conn:   &redis.PubSubConn{b.pool.Get()},
+		conn:   &redis.PubSubConn{Conn: b.pool.Get()},
 		topic:  topic,
 		handle: handler,
 		opts:   options,

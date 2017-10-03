@@ -40,7 +40,7 @@ func TestGRPCServer(t *testing.T) {
 	// check registration
 	services, err := r.GetService("foo")
 	if err != nil || len(services) == 0 {
-		t.Fatal("failed to get service: %v # %d", err, len(services))
+		t.Fatalf("failed to get service: %v # %d", err, len(services))
 	}
 
 	defer func() {
@@ -55,7 +55,7 @@ func TestGRPCServer(t *testing.T) {
 
 	cc, err := grpc.Dial(s.Options().Address, grpc.WithInsecure())
 	if err != nil {
-		t.Fatal("failed to dial server: %v", err)
+		t.Fatalf("failed to dial server: %v", err)
 	}
 
 	testMethods := []string{"Say.Hello", "/helloworld.Say/Hello", "/greeter.helloworld.Say/Hello"}
@@ -64,7 +64,7 @@ func TestGRPCServer(t *testing.T) {
 		rsp := pb.Response{}
 
 		if err := grpc.Invoke(context.Background(), method, &pb.Request{Name: "John"}, &rsp, cc); err != nil {
-			t.Fatal("error calling server: %v", err)
+			t.Fatalf("error calling server: %v", err)
 		}
 
 		if rsp.Msg != "Hello John" {

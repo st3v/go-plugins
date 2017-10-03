@@ -42,7 +42,7 @@ func TestMQTTHandler(t *testing.T) {
 	}
 
 	if string(p.Message().Body) != "hello" {
-		t.Fatal("Expected `hello` message got %s", string(p.Message().Body))
+		t.Fatalf("Expected `hello` message got %s", string(p.Message().Body))
 	}
 
 	s := &mqttSub{

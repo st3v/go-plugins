@@ -226,11 +226,11 @@ func (d *delegate) MergeRemoteState(buf []byte, join bool) {
 func (m *gossipRegistry) publish(action string, services []*registry.Service) {
 	m.s.RLock()
 	for _, sub := range m.subs {
-		go func() {
+		go func(sub chan *registry.Result) {
 			for _, service := range services {
 				sub <- &registry.Result{Action: action, Service: service}
 			}
-		}()
+		}(sub)
 	}
 	m.s.RUnlock()
 }

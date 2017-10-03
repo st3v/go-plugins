@@ -44,7 +44,6 @@ func (b *bsonCodec) Write(m *codec.Message, body interface{}) error {
 	default:
 		return fmt.Errorf("Unrecognised message type: %v", m.Type)
 	}
-	return nil
 }
 
 func (b *bsonCodec) ReadHeader(m *codec.Message, mt codec.MessageType) error {

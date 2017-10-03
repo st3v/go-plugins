@@ -100,7 +100,7 @@ func TestRateServerLimit(t *testing.T) {
 
 		for j := 0; j < limit; j++ {
 			if err := c.Call(context.TODO(), req, &rsp); err != nil {
-				t.Fatal("Unexpected request error: %v", err)
+				t.Fatalf("Unexpected request error: %v", err)
 			}
 		}
 
@@ -111,7 +111,7 @@ func TestRateServerLimit(t *testing.T) {
 
 		e := errors.Parse(err.Error())
 		if e.Code != 429 {
-			t.Fatal("Expected rate limit error, got %v", err)
+			t.Fatalf("Expected rate limit error, got %v", err)
 		}
 
 		s.Deregister()

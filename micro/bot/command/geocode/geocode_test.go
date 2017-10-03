@@ -25,7 +25,7 @@ func TestGeocode(t *testing.T) {
 
 		parts := strings.Split(string(rsp), ",")
 		if len(parts) != 2 {
-			t.Fatal("Expected 2 parts, got %v", parts)
+			t.Fatalf("Expected 2 parts, got %v", parts)
 		}
 
 		flat, _ := strconv.ParseFloat(parts[0], 64)

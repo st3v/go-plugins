@@ -99,7 +99,6 @@ func (s *subscriber) Unsubscribe() error {
 		close(s.exit)
 		return s.sub.Delete(context.Background())
 	}
-	return nil
 }
 
 func (p *publication) Ack() error {

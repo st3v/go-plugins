@@ -86,8 +86,6 @@ func (e *etcdLeader) elect(val string, opts *client.SetOptions, wait bool) error
 			}
 		}
 	}
-
-	return nil
 }
 
 func (e *etcdLeader) resign(val string) {

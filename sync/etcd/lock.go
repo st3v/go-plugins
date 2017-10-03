@@ -83,8 +83,6 @@ func (e *etcdLock) Acquire() error {
 			}
 		}
 	}
-
-	return nil
 }
 
 func (e *etcdLock) Release() error {

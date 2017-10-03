@@ -1,7 +1,6 @@
 package etcd
 
 import (
-	"errors"
 	"sync"
 
 	etcd "github.com/coreos/etcd/client"
@@ -11,7 +10,7 @@ import (
 
 type etcdWatcher struct {
 	ctx  context.Context
-	once sync.Once
+	once *sync.Once
 	stop chan bool
 	w    etcd.Watcher
 }
@@ -29,7 +28,7 @@ func newEtcdWatcher(r *etcdRegistry) (registry.Watcher, error) {
 	return &etcdWatcher{
 		ctx:  ctx,
 		w:    r.client.Watcher(prefix, &etcd.WatcherOptions{AfterIndex: 0, Recursive: true}),
-		once: once,
+		once: &once,
 		stop: stop,
 	}, nil
 }
@@ -74,7 +73,6 @@ func (ew *etcdWatcher) Next() (*registry.Result, error) {
 		}
 
 	}
-	return nil, errors.New("could not get next")
 }
 
 func (ew *etcdWatcher) Stop() {

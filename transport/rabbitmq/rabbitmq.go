@@ -102,8 +102,6 @@ func (r *rmqtportClient) Send(m *transport.Message) error {
 	case <-time.After(r.rt.opts.Timeout):
 		return errors.New("timed out")
 	}
-
-	return nil
 }
 
 func (r *rmqtportClient) Recv(m *transport.Message) error {
@@ -210,8 +208,6 @@ func (r *rmqtportSocket) Send(m *transport.Message) error {
 	case <-time.After(r.rt.opts.Timeout):
 		return errors.New("timed out")
 	}
-
-	return nil
 }
 
 func (r *rmqtportSocket) Close() error {

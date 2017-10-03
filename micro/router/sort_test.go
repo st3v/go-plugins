@@ -26,7 +26,7 @@ func TestRouterSort(t *testing.T) {
 		sort.Sort(sortedRoutes{r})
 		for i, j := range d.Expect {
 			if r.Routes[i].Priority != j {
-				t.Fatal("Expected val %d got %d", j, r.Routes[i].Priority)
+				t.Fatalf("Expected val %d got %d", j, r.Routes[i].Priority)
 			}
 		}
 	}

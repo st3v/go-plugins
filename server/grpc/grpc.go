@@ -95,9 +95,6 @@ func (g *grpcServer) serve(l net.Listener) error {
 
 		go g.accept(conn)
 	}
-
-	// uhh..
-	return nil
 }
 
 func (g *grpcServer) accept(conn net.Conn) {

@@ -267,7 +267,6 @@ func (n *ntportListener) Accept(fn func(transport.Socket)) error {
 		sock.Unlock()
 
 	}
-	return lerr
 }
 
 func (n *ntport) Dial(addr string, dialOpts ...transport.DialOption) (transport.Client, error) {

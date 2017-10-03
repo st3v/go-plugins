@@ -12,7 +12,7 @@ import (
 func leaderStatus(i int, s sync.Leader, msg string) {
 	status, err := s.Status()
 	if err != nil {
-		fmt.Printf("[leader:%d] error getting leader status %v", err)
+		fmt.Printf("[leader:%d] error getting leader status %v", i, err)
 		return
 	}
 	fmt.Printf("[leader:%d] [status:%v] %s\n", i, status, msg)
