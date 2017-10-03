@@ -226,7 +226,7 @@ func (b *sqsBroker) Publish(queueName string, msg *broker.Message, opts ...broke
 	input.MessageDeduplicationId = b.generateDedupID(msg)
 	input.MessageGroupId = b.generateGroupID(msg)
 
-	log.Log(fmt.Sprintf("Publishing SQS message, %d bytes", len(*msg.Body)))
+	log.Log(fmt.Sprintf("Publishing SQS message, %d bytes", len(msg.Body)))
 	_, err = b.svc.SendMessage(input)
 
 	if err != nil {
