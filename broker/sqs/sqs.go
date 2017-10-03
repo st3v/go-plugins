@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/micro/go-log"
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/cmd"
 	"golang.org/x/net/context"
@@ -53,7 +54,7 @@ func init() {
 // run is designed to run as a goroutine and poll SQS for new messages. Note that it's possible to receive
 // more than one message from a single poll depending on the options configured for the plugin
 func (s *subscriber) run(hdlr broker.Handler) {
-	fmt.Printf("Broker subscription started: %s\n", s.URL)
+	log.Log(fmt.Sprintf("SQS subscription started. Queue:%s, URL: %s", s.queueName, s.URL))
 	for {
 		select {
 		case <-s.exit:
@@ -74,9 +75,10 @@ func (s *subscriber) run(hdlr broker.Handler) {
 
 			if err != nil {
 				time.Sleep(time.Second)
-				fmt.Println(err)
+				log.Log(fmt.Sprintf("Error receiving SQS message: %s", err.Error()))
 				continue
 			}
+
 			if len(result.Messages) == 0 {
 				time.Sleep(time.Second)
 				continue
@@ -114,6 +116,7 @@ func (s *subscriber) getWaitSeconds() *int64 {
 }
 
 func (s *subscriber) handleMessage(msg *sqs.Message, hdlr broker.Handler) {
+	log.Log(fmt.Sprintf("Received SQS message: %d bytes", len(*msg.Body)))
 	m := &broker.Message{
 		Header: buildMessageHeader(msg.MessageAttributes),
 		Body:   []byte(*msg.Body),
@@ -131,7 +134,10 @@ func (s *subscriber) handleMessage(msg *sqs.Message, hdlr broker.Handler) {
 		fmt.Println(err)
 	}
 	if s.options.AutoAck {
-		p.Ack()
+		err := p.Ack()
+		if err != nil {
+			log.Log(fmt.Sprintf("Failed auto-acknowledge of message: %s", err.Error()))
+		}
 	}
 }
 
@@ -220,6 +226,7 @@ func (b *sqsBroker) Publish(queueName string, msg *broker.Message, opts ...broke
 	input.MessageDeduplicationId = b.generateDedupID(msg)
 	input.MessageGroupId = b.generateGroupID(msg)
 
+	log.Log(fmt.Sprintf("Publishing SQS message, %d bytes", len(*msg.Body)))
 	_, err = b.svc.SendMessage(input)
 
 	if err != nil {
@@ -265,9 +272,9 @@ func (b *sqsBroker) urlFromQueueName(queueName string) (string, error) {
 	})
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == sqs.ErrCodeQueueDoesNotExist {
-			return "", errors.New(fmt.Sprintf("Unable to find queue %s", queueName))
+			return "", errors.New(fmt.Sprintf("Unable to find queue %s: %s", queueName, err.Error()))
 		}
-		return "", errors.New(fmt.Sprintf("Unable to determine URL for queue %s", queueName))
+		return "", errors.New(fmt.Sprintf("Unable to determine URL for queue %s: %s", queueName, err.Error()))
 	}
 	return *resultURL.QueueUrl, nil
 }
