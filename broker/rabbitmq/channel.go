@@ -116,12 +116,12 @@ func (r *rabbitMQChannel) ConsumeQueue(queue string, autoAck bool) (<-chan amqp.
 	)
 }
 
-func (r *rabbitMQChannel) BindQueue(queue, key, exchange string) error {
+func (r *rabbitMQChannel) BindQueue(queue, key, exchange string, args amqp.Table) error {
 	return r.channel.QueueBind(
 		queue,    // name
 		key,      // key
 		exchange, // exchange
 		false,    // noWait
-		nil,      // args
+		args,     // args
 	)
 }
