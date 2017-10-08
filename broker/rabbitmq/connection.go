@@ -172,7 +172,7 @@ func (r *rabbitMQConn) tryConnect(secure bool, config *tls.Config) error {
 	return err
 }
 
-func (r *rabbitMQConn) Consume(queue, key string, autoAck, durableQueue bool) (*rabbitMQChannel, <-chan amqp.Delivery, error) {
+func (r *rabbitMQConn) Consume(queue, key string, headers amqp.Table, autoAck, durableQueue bool) (*rabbitMQChannel, <-chan amqp.Delivery, error) {
 	consumerChannel, err := newRabbitChannel(r.Connection)
 	if err != nil {
 		return nil, nil, err
@@ -193,7 +193,7 @@ func (r *rabbitMQConn) Consume(queue, key string, autoAck, durableQueue bool) (*
 		return nil, nil, err
 	}
 
-	err = consumerChannel.BindQueue(queue, key, r.exchange)
+	err = consumerChannel.BindQueue(queue, key, r.exchange, headers)
 	if err != nil {
 		return nil, nil, err
 	}

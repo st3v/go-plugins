@@ -81,9 +81,17 @@ func (r *rbroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 		durableQueue, _ = opt.Context.Value(durableQueueKey{}).(bool)
 	}
 
+	var headers map[string]interface{}
+	if opt.Context != nil {
+		if h, ok := opt.Context.Value(headersKey{}).(map[string]interface{}); ok {
+			headers = h
+		}
+	}
+
 	ch, sub, err := r.conn.Consume(
 		opt.Queue,
 		topic,
+		headers,
 		opt.AutoAck,
 		durableQueue,
 	)
