@@ -51,11 +51,11 @@ func (m *metadata) Init(ctx *cli.Context) error {
 	// iterate the string slice
 	for _, pair := range md {
 		parts := strings.Split(pair, "=")
-		if len(parts) != 2 {
+		if len(parts) < 2 {
 			continue
 		}
 		// set key-vals
-		m.md[parts[0]] = parts[1]
+		m.md[parts[0]] = strings.Join(parts[1:], "=")
 	}
 
 	// wrap the client
