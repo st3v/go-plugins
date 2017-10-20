@@ -437,6 +437,7 @@ func (g *grpcClient) String() string {
 
 func newClient(opts ...client.Option) client.Client {
 	options := client.Options{
+		Codecs: make(map[string]codec.NewCodec),
 		CallOptions: client.CallOptions{
 			Backoff:        client.DefaultBackoff,
 			Retry:          client.DefaultRetry,
