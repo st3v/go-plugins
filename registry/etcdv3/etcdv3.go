@@ -16,6 +16,7 @@ import (
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
 
+	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
 	hash "github.com/mitchellh/hashstructure"
 )
 
@@ -85,17 +86,18 @@ func (e *etcdv3Registry) Register(s *registry.Service, opts ...registry.Register
 		return errors.New("Require at least one node")
 	}
 
+	var leaseNotFound bool
 	//refreshing lease if existing
 	leaseID, ok := e.leases[s.Name]
 	if ok {
 		if _, err := e.client.KeepAliveOnce(context.TODO(), leaseID); err != nil {
-			return err
-		}
-	}
+			if err != rpctypes.ErrLeaseNotFound {
+				return err
+			}
 
-	var options registry.RegisterOptions
-	for _, o := range opts {
-		o(&options)
+			// lease not found do register
+			leaseNotFound = true
+		}
 	}
 
 	// create hash of service; uint64
@@ -110,7 +112,7 @@ func (e *etcdv3Registry) Register(s *registry.Service, opts ...registry.Register
 	e.Unlock()
 
 	// the service is unchanged, skip registering
-	if ok && v == h {
+	if ok && v == h && !leaseNotFound {
 		return nil
 	}
 
@@ -119,6 +121,11 @@ func (e *etcdv3Registry) Register(s *registry.Service, opts ...registry.Register
 		Version:   s.Version,
 		Metadata:  s.Metadata,
 		Endpoints: s.Endpoints,
+	}
+
+	var options registry.RegisterOptions
+	for _, o := range opts {
+		o(&options)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), e.options.Timeout)
