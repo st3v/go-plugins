@@ -12,12 +12,14 @@ import (
 
 type jsonCodec struct{}
 type protoCodec struct{}
+type bytesCodec struct{}
 
 var (
 	defaultGRPCCodecs = map[string]grpc.Codec{
 		"application/grpc":       protoCodec{},
 		"application/grpc+json":  jsonCodec{},
 		"application/grpc+proto": protoCodec{},
+		"application/grpc+bytes": protoCodec{},
 	}
 
 	defaultRPCCodecs = map[string]codec.NewCodec{

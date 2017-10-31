@@ -451,6 +451,15 @@ func (g *grpcServer) processStream(t transport.ServerTransport, stream *transpor
 }
 
 func (g *grpcServer) newGRPCCodec(contentType string) (grpc.Codec, error) {
+	codecs := make(map[string]grpc.Codec)
+	if g.opts.Context != nil {
+		if v := g.opts.Context.Value(codecsKey{}); v != nil {
+			codecs = v.(map[string]grpc.Codec)
+		}
+	}
+	if c, ok := codecs[contentType]; ok {
+		return c, nil
+	}
 	if c, ok := defaultGRPCCodecs[contentType]; ok {
 		return c, nil
 	}
