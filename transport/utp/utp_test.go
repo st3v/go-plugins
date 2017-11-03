@@ -22,7 +22,7 @@ func expectedPort(t *testing.T, expected string, lsn transport.Listener) {
 func testUTPTransport(t *testing.T, secure bool) {
 	tr := NewTransport(transport.Secure(secure))
 
-	l, err := tr.Listen(":0")
+	l, err := tr.Listen("127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Unexpected listen err: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestUTPTransportPortRange(t *testing.T) {
 	}
 	expectedPort(t, "44445", lsn2)
 
-	lsn, err := tp.Listen(":0")
+	lsn, err := tp.Listen("127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Did not expect an error, got %s", err)
 	}
@@ -113,7 +113,7 @@ func TestUTPTransportPortRange(t *testing.T) {
 func TestUTPTransportError(t *testing.T) {
 	tr := NewTransport()
 
-	l, err := tr.Listen(":0")
+	l, err := tr.Listen("127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Unexpected listen err: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestUTPTransportError(t *testing.T) {
 func TestUTPTransportTimeout(t *testing.T) {
 	tr := NewTransport(transport.Timeout(time.Millisecond * 100))
 
-	l, err := tr.Listen(":0")
+	l, err := tr.Listen("127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Unexpected listen err: %v", err)
 	}
