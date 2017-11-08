@@ -1,5 +1,5 @@
-// statsAuth enables basic auth on the /stats endpoint
-package statsAuth
+// stats_auth enables basic auth on the /stats endpoint
+package stats_auth
 
 import (
 	"net/http"
@@ -12,13 +12,13 @@ const (
 	defaultRealm = "Access to stats is restricted"
 )
 
-type statsAuth struct {
+type stats_auth struct {
 	User  string
 	Pass  string
 	Realm string
 }
 
-func (sa *statsAuth) Flags() []cli.Flag {
+func (sa *stats_auth) Flags() []cli.Flag {
 	return []cli.Flag{
 		cli.StringFlag{
 			Name:   "stats_auth_user",
@@ -38,11 +38,11 @@ func (sa *statsAuth) Flags() []cli.Flag {
 	}
 }
 
-func (sa *statsAuth) Commands() []cli.Command {
+func (sa *stats_auth) Commands() []cli.Command {
 	return nil
 }
 
-func (sa *statsAuth) Handler() plugin.Handler {
+func (sa *stats_auth) Handler() plugin.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/stats" {
@@ -62,7 +62,7 @@ func (sa *statsAuth) Handler() plugin.Handler {
 	}
 }
 
-func (sa *statsAuth) Init(ctx *cli.Context) error {
+func (sa *stats_auth) Init(ctx *cli.Context) error {
 	sa.User = ctx.String("stats_auth_user")
 	sa.Pass = ctx.String("stats_auth_pass")
 	if ctx.IsSet("stats_auth_realm") {
@@ -73,10 +73,10 @@ func (sa *statsAuth) Init(ctx *cli.Context) error {
 	return nil
 }
 
-func (sa *statsAuth) String() string {
-	return "statsAuth"
+func (sa *stats_auth) String() string {
+	return "stats_auth"
 }
 
 func New() plugin.Plugin {
-	return &statsAuth{}
+	return &stats_auth{}
 }

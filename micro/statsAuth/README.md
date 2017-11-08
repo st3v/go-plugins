@@ -1,6 +1,6 @@
-# StatsAuth Plugin
+# stats_auth Plugin
 
-StatsAuth plugin enables basic auth on the /stats endpoint  
+stats_auth plugin enables basic auth on the /stats endpoint  
 
 ## Usage
 
@@ -11,11 +11,11 @@ package main
 
 import (
 	"github.com/micro/micro/plugin"
-	"github.com/micro/go-plugins/micro/statsAuth"
+	"github.com/micro/go-plugins/micro/stats_auth"
 )
 
 func init() {
-	plugin.Register(statsAuth.New())
+	plugin.Register(stats_auth.New())
 }
 ```
 
@@ -35,16 +35,16 @@ package main
 
 import (
 	"github.com/micro/micro/api"
-	"github.com/micro/go-plugins/micro/statsAuth"
+	"github.com/micro/go-plugins/micro/stats_auth"
 )
 
 func init() {
-	api.Register(statsAuth.New())
+	api.Register(stats_auth.New())
 }
 ```
 
 Here's the help output:
-  
+
 ```
 	 --stats_auth_user 								Username used for basic auth for /stats endpoint [$STATS_AUTH_USER]
    --stats_auth_pass 								Password used for basic auth for /stats endpoint [$STATS_AUTH_PASS]
