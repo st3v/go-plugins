@@ -3,7 +3,6 @@ package statsAuth
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/micro/cli"
 	"github.com/micro/micro/plugin"
@@ -31,9 +30,9 @@ func (sa *statsAuth) Flags() []cli.Flag {
 			Usage:  "Password used for basic auth for /stats endpoint",
 			EnvVar: "STATS_AUTH_PASS",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:   "stats_auth_realm",
-			Usage:  "Realm used for basic auth for /stats endpoint. Optional. Defaults to " + defaultRealm,
+			Usage:  "Realm used for basic auth for /stats endpoint. Escape spaces to add multiple words. Optional. Defaults to " + defaultRealm,
 			EnvVar: "STATS_AUTH_REALM",
 		},
 	}
@@ -67,7 +66,7 @@ func (sa *statsAuth) Init(ctx *cli.Context) error {
 	sa.User = ctx.String("stats_auth_user")
 	sa.Pass = ctx.String("stats_auth_pass")
 	if ctx.IsSet("stats_auth_realm") {
-		sa.Realm = strings.Join(ctx.StringSlice("stats_auth_realm"), " ")
+		sa.Realm = ctx.String("stats_auth_realm")
 	} else {
 		sa.Realm = defaultRealm
 	}

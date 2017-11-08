@@ -22,43 +22,37 @@ func init() {
 You can then set the appropriate variables through command line like so:  
 
 ```
-micro --enable_stats --stats_auth_user=root --stats_auth_pass=admin --stats_auth_realm=xu api
+micro --enable_stats --stats_auth_user=root --stats_auth_pass=admin --stats_auth_realm=A\ realm\ of\ fun\ and\ happiness api
 ```
 
 ### Scoped to API
 
 If you like to only apply the plugin for a specific component you can register it with that specifically.
-For example, below you'll see the plugin registered with the API.
+For example, below you'll see the plugin registered with the API.  
 
 ```
 package main
 
 import (
 	"github.com/micro/micro/api"
-	"github.com/micro/go-plugins/micro/whitelist"
+	"github.com/micro/go-plugins/micro/statsAuth"
 )
 
 func init() {
-	api.Register(whitelist.NewRPCWhitelist())
+	api.Register(statsAuth.New())
 }
 ```
 
-Here's what the help displays when you do that.
-
+Here's the help output:
+  
 ```
-$ go run main.go link.go api --help
-NAME:
-   main api - Run the micro API
-
-USAGE:
-   main api [command options] [arguments...]
-
-OPTIONS:
-   --rpc_whitelist 	Comma separated whitelist of allowed services for RPC calls [$MICRO_RPC_WHITELIST]
+	 --stats_auth_user 								Username used for basic auth for /stats endpoint [$STATS_AUTH_USER]
+   --stats_auth_pass 								Password used for basic auth for /stats endpoint [$STATS_AUTH_PASS]
+   --stats_auth_realm 							Realm used for basic auth for /stats endpoint. Escape spaces to add multiple words. Optional. Defaults to Access to stats is restricted [$STATS_AUTH_REALM]
 ```
 
 In this case the usage would be
 
 ```
-micro api --rpc_whitelist go.micro.srv.greeter
+micro --enable_stats api --stats_auth_user=root --stats_auth_pass=admin --stats_auth_realm=A\ realm\ of\ fun\ and\ happiness
 ```
