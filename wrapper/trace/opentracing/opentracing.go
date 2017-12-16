@@ -7,6 +7,7 @@ import (
 	"github.com/micro/go-micro/client"
 	"github.com/micro/go-micro/metadata"
 	"github.com/micro/go-micro/server"
+	"github.com/opentracing/opentracing-go"
 	"golang.org/x/net/context"
 )
 
