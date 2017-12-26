@@ -17,7 +17,10 @@ type otWrapper struct {
 }
 
 func traceIntoContext(ctx context.Context, tracer opentracing.Tracer, name string) (context.Context, opentracing.Span, error) {
-	md, _ := metadata.FromContext(ctx)
+	md, ok := metadata.FromContext(ctx)
+	if !ok {
+		md = make(map[string]string)
+	}
 	var sp opentracing.Span
 	wireContext, err := tracer.Extract(opentracing.TextMap, opentracing.TextMapCarrier(md))
 	if err != nil {
