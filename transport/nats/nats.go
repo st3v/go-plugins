@@ -329,7 +329,7 @@ func (n *ntport) Dial(addr string, dialOpts ...transport.DialOption) (transport.
 }
 
 func (n *ntport) Listen(addr string, listenOpts ...transport.ListenOption) (transport.Listener, error) {
-	opts := nats.DefaultOptions
+	opts := n.nopts
 	opts.Servers = n.addrs
 	opts.Secure = n.opts.Secure
 	opts.TLSConfig = n.opts.TLSConfig
