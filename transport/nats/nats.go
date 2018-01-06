@@ -2,6 +2,7 @@
 package nats
 
 import (
+	"context"
 	"errors"
 	"io"
 	"strings"
@@ -17,6 +18,7 @@ import (
 type ntport struct {
 	addrs []string
 	opts  transport.Options
+	nopts nats.Options
 }
 
 type ntportClient struct {
@@ -57,6 +59,23 @@ var (
 
 func init() {
 	cmd.DefaultTransports["nats"] = NewTransport
+}
+
+func setAddrs(addrs []string) []string {
+	var cAddrs []string
+	for _, addr := range addrs {
+		if len(addr) == 0 {
+			continue
+		}
+		if !strings.HasPrefix(addr, "nats://") {
+			addr = "nats://" + addr
+		}
+		cAddrs = append(cAddrs, addr)
+	}
+	if len(cAddrs) == 0 {
+		cAddrs = []string{nats.DefaultURL}
+	}
+	return cAddrs
 }
 
 func (n *ntportClient) Send(m *transport.Message) error {
@@ -278,7 +297,7 @@ func (n *ntport) Dial(addr string, dialOpts ...transport.DialOption) (transport.
 		o(&dopts)
 	}
 
-	opts := nats.DefaultOptions
+	opts := n.nopts
 	opts.Servers = n.addrs
 	opts.Secure = n.opts.Secure
 	opts.TLSConfig = n.opts.TLSConfig
@@ -310,7 +329,7 @@ func (n *ntport) Dial(addr string, dialOpts ...transport.DialOption) (transport.
 }
 
 func (n *ntport) Listen(addr string, listenOpts ...transport.ListenOption) (transport.Listener, error) {
-	opts := nats.DefaultOptions
+	opts := n.nopts
 	opts.Servers = n.addrs
 	opts.Secure = n.opts.Secure
 	opts.TLSConfig = n.opts.TLSConfig
@@ -339,34 +358,45 @@ func (n *ntport) String() string {
 }
 
 func NewTransport(opts ...transport.Option) transport.Transport {
+
 	options := transport.Options{
 		// Default codec
 		Codec:   json.NewCodec(),
 		Timeout: DefaultTimeout,
+		Context: context.Background(),
 	}
 
 	for _, o := range opts {
 		o(&options)
 	}
 
-	var cAddrs []string
-
-	for _, addr := range options.Addrs {
-		if len(addr) == 0 {
-			continue
-		}
-		if !strings.HasPrefix(addr, "nats://") {
-			addr = "nats://" + addr
-		}
-		cAddrs = append(cAddrs, addr)
+	natsOptions := nats.GetDefaultOptions()
+	if n, ok := options.Context.Value(optionsKey{}).(nats.Options); ok {
+		natsOptions = n
 	}
 
-	if len(cAddrs) == 0 {
-		cAddrs = []string{nats.DefaultURL}
+	// transport.Options have higher priority than nats.Options
+	// only if Addrs, Secure or TLSConfig were not set through a transport.Option
+	// we read them from nats.Option
+	if len(options.Addrs) == 0 {
+		options.Addrs = natsOptions.Servers
 	}
+
+	if !options.Secure {
+		options.Secure = natsOptions.Secure
+	}
+
+	if options.TLSConfig == nil {
+		options.TLSConfig = natsOptions.TLSConfig
+	}
+
+	// check & add nats:// prefix (this makes also sure that the addresses
+	// stored in natsRegistry.addrs and options.Addrs are identical)
+	options.Addrs = setAddrs(options.Addrs)
 
 	return &ntport{
-		addrs: cAddrs,
+		addrs: options.Addrs,
 		opts:  options,
+		nopts: natsOptions,
 	}
 }
