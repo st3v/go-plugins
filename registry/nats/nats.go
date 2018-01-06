@@ -27,6 +27,11 @@ type natsRegistry struct {
 	listeners map[string]chan bool
 }
 
+var (
+	defaultQueryTopic = "micro.registry.nats.query"
+	defaultWatchTopic = "micro.registry.nats.watch"
+)
+
 func init() {
 	cmd.DefaultRegistries["nats"] = NewRegistry
 }
@@ -49,7 +54,6 @@ func setAddrs(addrs []string) []string {
 }
 
 func (n *natsRegistry) newConn() (*nats.Conn, error) {
-
 	opts := n.nopts
 	opts.Servers = n.addrs
 	opts.Secure = n.opts.Secure
@@ -337,7 +341,6 @@ func (n *natsRegistry) String() string {
 }
 
 func NewRegistry(opts ...registry.Option) registry.Registry {
-
 	options := registry.Options{
 		Timeout: time.Millisecond * 100,
 		Context: context.Background(),
@@ -352,12 +355,12 @@ func NewRegistry(opts ...registry.Option) registry.Registry {
 		natsOptions = n
 	}
 
-	queryTopic := "micro.registry.nats.query"
+	queryTopic := defaultQueryTopic
 	if qt, ok := options.Context.Value(queryTopicKey{}).(string); ok {
 		queryTopic = qt
 	}
 
-	watchTopic := "micro.registry.nats.watch"
+	watchTopic := defaultWatchTopic
 	if wt, ok := options.Context.Value(watchTopicKey{}).(string); ok {
 		watchTopic = wt
 	}

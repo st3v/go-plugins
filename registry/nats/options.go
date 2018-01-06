@@ -15,12 +15,6 @@ var (
 	DefaultQuorum = 0
 )
 
-func Quorum(n int) registry.Option {
-	return func(o *registry.Options) {
-		o.Context = context.WithValue(o.Context, contextQuorumKey{}, n)
-	}
-}
-
 func getQuorum(o registry.Options) int {
 	if o.Context == nil {
 		return DefaultQuorum
@@ -31,6 +25,12 @@ func getQuorum(o registry.Options) int {
 		return v
 	} else {
 		return DefaultQuorum
+	}
+}
+
+func Quorum(n int) registry.Option {
+	return func(o *registry.Options) {
+		o.Context = context.WithValue(o.Context, contextQuorumKey{}, n)
 	}
 }
 
