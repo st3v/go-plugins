@@ -7,20 +7,13 @@ import (
 )
 
 type contextQuorumKey struct{}
-type optionsKeyType struct{}
+type optionsKey struct{}
+type watchTopicKey struct{}
+type queryTopicKey struct{}
 
 var (
-	DefaultQuorum      = 0
-	DefaultNatsOptions = nats.GetDefaultOptions()
-
-	optionsKey = optionsKeyType{}
+	DefaultQuorum = 0
 )
-
-type registryOptions struct {
-	natsOptions nats.Options
-	queryTopic  string
-	watchTopic  string
-}
 
 func Quorum(n int) registry.Option {
 	return func(o *registry.Options) {
@@ -41,12 +34,14 @@ func getQuorum(o registry.Options) int {
 	}
 }
 
-// NatsOptions allow to inject a nats.Options struct for configuring
+// Options allow to inject a nats.Options struct for configuring
 // the nats connection
-func NatsOptions(nopts nats.Options) registry.Option {
+func Options(nopts nats.Options) registry.Option {
 	return func(o *registry.Options) {
-		no := o.Context.Value(optionsKey).(*registryOptions)
-		no.natsOptions = nopts
+		if o.Context == nil {
+			o.Context = context.Background()
+		}
+		o.Context = context.WithValue(o.Context, optionsKey{}, nopts)
 	}
 }
 
@@ -55,8 +50,10 @@ func NatsOptions(nopts nats.Options) registry.Option {
 // then respond to the query message.
 func QueryTopic(s string) registry.Option {
 	return func(o *registry.Options) {
-		no := o.Context.Value(optionsKey).(*registryOptions)
-		no.queryTopic = s
+		if o.Context == nil {
+			o.Context = context.Background()
+		}
+		o.Context = context.WithValue(o.Context, queryTopicKey{}, s)
 	}
 }
 
@@ -66,7 +63,9 @@ func QueryTopic(s string) registry.Option {
 // determined frequency on this topic.
 func WatchTopic(s string) registry.Option {
 	return func(o *registry.Options) {
-		no := o.Context.Value(optionsKey).(*registryOptions)
-		no.watchTopic = s
+		if o.Context == nil {
+			o.Context = context.Background()
+		}
+		o.Context = context.WithValue(o.Context, watchTopicKey{}, s)
 	}
 }

@@ -31,12 +31,6 @@ func init() {
 	cmd.DefaultRegistries["nats"] = NewRegistry
 }
 
-var (
-	DefaultQueryTopic = "micro.registry.nats.query"
-	DefaultWatchTopic = "micro.registry.nats.watch"
-	DefaultTimeout    = time.Millisecond * 100
-)
-
 func setAddrs(addrs []string) []string {
 	var cAddrs []string
 	for _, addr := range addrs {
@@ -344,34 +338,43 @@ func (n *natsRegistry) String() string {
 
 func NewRegistry(opts ...registry.Option) registry.Registry {
 
-	ropts := &registryOptions{
-		natsOptions: DefaultNatsOptions,
-		queryTopic:  DefaultQueryTopic,
-		watchTopic:  DefaultWatchTopic,
-	}
-
 	options := registry.Options{
-		Timeout: DefaultTimeout,
-		Context: context.WithValue(context.Background(), optionsKey, ropts),
+		Timeout: time.Millisecond * 100,
+		Context: context.Background(),
 	}
 
 	for _, o := range opts {
 		o(&options)
 	}
 
+	natsOptions := nats.GetDefaultOptions()
+	if n, ok := options.Context.Value(optionsKey{}).(nats.Options); ok {
+		natsOptions = n
+	}
+
+	queryTopic := "micro.registry.nats.query"
+	if qt, ok := options.Context.Value(queryTopicKey{}).(string); ok {
+		queryTopic = qt
+	}
+
+	watchTopic := "micro.registry.nats.watch"
+	if wt, ok := options.Context.Value(watchTopicKey{}).(string); ok {
+		watchTopic = wt
+	}
+
 	// registry.Options have higher priority than nats.Options
 	// only if Addrs, Secure or TLSConfig were not set through a registry.Option
 	// we read them from nats.Option
 	if len(options.Addrs) == 0 {
-		options.Addrs = ropts.natsOptions.Servers
+		options.Addrs = natsOptions.Servers
 	}
 
 	if !options.Secure {
-		options.Secure = ropts.natsOptions.Secure
+		options.Secure = natsOptions.Secure
 	}
 
 	if options.TLSConfig == nil {
-		options.TLSConfig = ropts.natsOptions.TLSConfig
+		options.TLSConfig = natsOptions.TLSConfig
 	}
 
 	// check & add nats:// prefix (this makes also sure that the addresses
@@ -381,9 +384,9 @@ func NewRegistry(opts ...registry.Option) registry.Registry {
 	return &natsRegistry{
 		addrs:      options.Addrs,
 		opts:       options,
-		nopts:      ropts.natsOptions,
-		queryTopic: ropts.queryTopic,
-		watchTopic: ropts.watchTopic,
+		nopts:      natsOptions,
+		queryTopic: queryTopic,
+		watchTopic: watchTopic,
 		services:   make(map[string][]*registry.Service),
 		listeners:  make(map[string]chan bool),
 	}

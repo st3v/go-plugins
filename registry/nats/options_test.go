@@ -58,7 +58,7 @@ func TestInitAddrs(t *testing.T) {
 			case "natsOption":
 				nopts := nats.GetDefaultOptions()
 				nopts.Servers = addrs
-				reg = NewRegistry(NatsOptions(nopts))
+				reg = NewRegistry(Options(nopts))
 			case "default":
 				reg = NewRegistry()
 			}
