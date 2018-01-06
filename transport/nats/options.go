@@ -1,27 +1,21 @@
 package nats
 
 import (
+	"golang.org/x/net/context"
+
 	"github.com/micro/go-micro/transport"
 	"github.com/nats-io/nats"
 )
 
-var (
-	DefaultNatsOptions = nats.GetDefaultOptions()
+type optionsKey struct{}
 
-	optionsKey = optionsKeyType{}
-)
-
-type optionsKeyType struct{}
-
-type transportOptions struct {
-	natsOptions nats.Options
-}
-
-// NatsOptions allow to inject a nats.Options struct for configuring
+// Options allow to inject a nats.Options struct for configuring
 // the nats connection
-func NatsOptions(nopts nats.Options) transport.Option {
+func Options(nopts nats.Options) transport.Option {
 	return func(o *transport.Options) {
-		no := o.Context.Value(optionsKey).(*transportOptions)
-		no.natsOptions = nopts
+		if o.Context == nil {
+			o.Context = context.Background()
+		}
+		o.Context = context.WithValue(o.Context, optionsKey{}, nopts)
 	}
 }

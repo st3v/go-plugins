@@ -55,7 +55,7 @@ func TestInitAddrs(t *testing.T) {
 			case "natsOption":
 				nopts := nats.GetDefaultOptions()
 				nopts.Servers = addrs
-				tr = NewTransport(NatsOptions(nopts))
+				tr = NewTransport(Options(nopts))
 			case "default":
 				tr = NewTransport()
 			}

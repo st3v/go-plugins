@@ -359,34 +359,35 @@ func (n *ntport) String() string {
 
 func NewTransport(opts ...transport.Option) transport.Transport {
 
-	trOpts := &transportOptions{
-		natsOptions: DefaultNatsOptions,
-	}
-
 	options := transport.Options{
 		// Default codec
 		Codec:   json.NewCodec(),
 		Timeout: DefaultTimeout,
-		Context: context.WithValue(context.Background(), optionsKey, trOpts),
+		Context: context.Background(),
 	}
 
 	for _, o := range opts {
 		o(&options)
 	}
 
+	natsOptions := nats.GetDefaultOptions()
+	if n, ok := options.Context.Value(optionsKey{}).(nats.Options); ok {
+		natsOptions = n
+	}
+
 	// transport.Options have higher priority than nats.Options
 	// only if Addrs, Secure or TLSConfig were not set through a transport.Option
 	// we read them from nats.Option
 	if len(options.Addrs) == 0 {
-		options.Addrs = trOpts.natsOptions.Servers
+		options.Addrs = natsOptions.Servers
 	}
 
 	if !options.Secure {
-		options.Secure = trOpts.natsOptions.Secure
+		options.Secure = natsOptions.Secure
 	}
 
 	if options.TLSConfig == nil {
-		options.TLSConfig = trOpts.natsOptions.TLSConfig
+		options.TLSConfig = natsOptions.TLSConfig
 	}
 
 	// check & add nats:// prefix (this makes also sure that the addresses
@@ -396,6 +397,6 @@ func NewTransport(opts ...transport.Option) transport.Transport {
 	return &ntport{
 		addrs: options.Addrs,
 		opts:  options,
-		nopts: trOpts.natsOptions,
+		nopts: natsOptions,
 	}
 }
