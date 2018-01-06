@@ -4,6 +4,8 @@ package nats
 import (
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/broker/codec/json"
 	"github.com/micro/go-micro/cmd"
@@ -14,6 +16,7 @@ type nbroker struct {
 	addrs []string
 	conn  *nats.Conn
 	opts  broker.Options
+	nopts nats.Options
 }
 
 type subscriber struct {
@@ -87,7 +90,7 @@ func (n *nbroker) Connect() error {
 		return nil
 	}
 
-	opts := nats.DefaultOptions
+	opts := n.nopts
 	opts.Servers = n.addrs
 	opts.Secure = n.opts.Secure
 	opts.TLSConfig = n.opts.TLSConfig
@@ -166,17 +169,42 @@ func (n *nbroker) String() string {
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
+
 	options := broker.Options{
 		// Default codec
-		Codec: json.NewCodec(),
+		Codec:   json.NewCodec(),
+		Context: context.Background(),
 	}
 
 	for _, o := range opts {
 		o(&options)
 	}
 
-	return &nbroker{
-		addrs: setAddrs(options.Addrs),
-		opts:  options,
+	natsOptions := nats.GetDefaultOptions()
+	if n, ok := options.Context.Value(optionsKey{}).(nats.Options); ok {
+		natsOptions = n
 	}
+
+	// broker.Options have higher priority than nats.Options
+	// only if Addrs, Secure or TLSConfig were not set through a broker.Option
+	// we read them from nats.Option
+	if len(options.Addrs) == 0 {
+		options.Addrs = natsOptions.Servers
+	}
+
+	if !options.Secure {
+		options.Secure = natsOptions.Secure
+	}
+
+	if options.TLSConfig == nil {
+		options.TLSConfig = natsOptions.TLSConfig
+	}
+
+	nb := &nbroker{
+		opts:  options,
+		nopts: natsOptions,
+		addrs: setAddrs(options.Addrs),
+	}
+
+	return nb
 }
