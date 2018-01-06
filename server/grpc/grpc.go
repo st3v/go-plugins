@@ -2,6 +2,7 @@
 package grpc
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -25,6 +26,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/transport"
@@ -45,7 +47,9 @@ type grpcServer struct {
 	handlers    map[string]server.Handler
 	subscribers map[*subscriber][]broker.Subscriber
 	// used for first registration
-	registered bool
+	registered     bool
+	securityOption grpc.DialOption
+	credentials    credentials.TransportCredentials
 }
 
 func init() {
@@ -54,6 +58,7 @@ func init() {
 
 func newGRPCServer(opts ...server.Option) server.Server {
 	options := newOptions(opts...)
+
 	return &grpcServer{
 		opts: options,
 		rpc: &rServer{
@@ -62,7 +67,19 @@ func newGRPCServer(opts ...server.Option) server.Server {
 		handlers:    make(map[string]server.Handler),
 		subscribers: make(map[*subscriber][]broker.Subscriber),
 		exit:        make(chan chan error),
+		credentials: getCredentiaksOption(options),
 	}
+}
+
+func getCredentiaksOption(opts server.Options) credentials.TransportCredentials {
+
+	if opts.Context != nil {
+		if v := opts.Context.Value(tlsAuth{}); v != nil {
+			tls := v.(*tls.Config)
+			return credentials.NewTLS(tls)
+		}
+	}
+	return nil
 }
 
 func (g *grpcServer) serve(l net.Listener) error {
@@ -97,8 +114,23 @@ func (g *grpcServer) serve(l net.Listener) error {
 	}
 }
 
-func (g *grpcServer) accept(conn net.Conn) {
-	st, err := transport.NewServerTransport("http2", conn, &transport.ServerConfig{})
+func (g *grpcServer) useTransportAuthenticator(rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
+	if g.credentials == nil {
+		return rawConn, nil, nil
+	}
+	return g.credentials.ServerHandshake(rawConn)
+}
+
+func (g *grpcServer) accept(rawConn net.Conn) {
+
+	conn, authInfo, err := g.useTransportAuthenticator(rawConn)
+
+	if err != nil {
+		rawConn.Close()
+		return
+	}
+
+	st, err := transport.NewServerTransport("http2", conn, &transport.ServerConfig{AuthInfo: authInfo})
 	if err != nil {
 		conn.Close()
 		return

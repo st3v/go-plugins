@@ -3,6 +3,7 @@ package grpc
 
 import (
 	"bytes"
+	"crypto/tls"
 	errs "errors"
 	"fmt"
 	"sync"
@@ -19,15 +20,17 @@ import (
 	"github.com/micro/go-micro/transport"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	gmetadata "google.golang.org/grpc/metadata"
 
 	"golang.org/x/net/context"
 )
 
 type grpcClient struct {
-	once sync.Once
-	opts client.Options
-	pool *pool
+	once           sync.Once
+	opts           client.Options
+	pool           *pool
+	securityOption grpc.DialOption
 }
 
 var (
@@ -60,8 +63,8 @@ func (g *grpcClient) call(ctx context.Context, address string, req client.Reques
 	}
 
 	var grr error
-	// TODO: do not use insecure
-	cc, err := g.pool.getConn(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout), grpc.WithInsecure())
+
+	cc, err := g.pool.getConn(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout), g.securityOption)
 	if err != nil {
 		return errors.InternalServerError("go.micro.client", fmt.Sprintf("Error sending request: %v", err))
 	}
@@ -108,8 +111,7 @@ func (g *grpcClient) stream(ctx context.Context, address string, req client.Requ
 		return nil, errors.InternalServerError("go.micro.client", err.Error())
 	}
 
-	// TODO: do not use insecure
-	cc, err := grpc.Dial(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout), grpc.WithInsecure())
+	cc, err := grpc.Dial(address, grpc.WithCodec(cf), grpc.WithTimeout(opts.DialTimeout), g.securityOption)
 	if err != nil {
 		return nil, errors.InternalServerError("go.micro.client", fmt.Sprintf("Error sending request: %v", err))
 	}
@@ -484,6 +486,8 @@ func newClient(opts ...client.Option) client.Client {
 		pool: newPool(options.PoolSize, options.PoolTTL),
 	}
 
+	rc.setSecurityOption()
+
 	c := client.Client(rc)
 
 	// wrap in reverse
@@ -492,6 +496,19 @@ func newClient(opts ...client.Option) client.Client {
 	}
 
 	return c
+}
+
+func (g *grpcClient) setSecurityOption() {
+
+	if g.opts.Context != nil {
+		if v := g.opts.Context.Value(tlsAuth{}); v != nil {
+			tls := v.(*tls.Config)
+			creds := credentials.NewTLS(tls)
+			g.securityOption = grpc.WithTransportCredentials(creds)
+			return
+		}
+	}
+	g.securityOption = grpc.WithInsecure()
 }
 
 func NewClient(opts ...client.Option) client.Client {
