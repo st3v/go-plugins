@@ -1,8 +1,12 @@
 package nats
 
 import (
+	"os"
+	"strings"
 	"testing"
 
+	"github.com/go-log/log"
+	"github.com/micro/go-micro/server"
 	"github.com/micro/go-micro/transport"
 	"github.com/nats-io/nats"
 )
@@ -75,6 +79,56 @@ func TestInitAddrs(t *testing.T) {
 				if !ok {
 					t.Errorf("Expected '%s' has not been set", addr)
 				}
+			}
+		})
+	}
+}
+
+var listenAddrTestCases = []struct {
+	name     string
+	address  string
+	mustPass bool
+}{
+	{"default address", server.DefaultAddress, true},
+	{"nats.NewInbox", nats.NewInbox(), true},
+	{"correct service name", "micro.test.myservice", true},
+	{"several space chars", "micro.test.my new service", false},
+	{"one space char", "micro.test.my oldservice", false},
+	{"empty", "", false},
+}
+
+func TestListenAddr(t *testing.T) {
+
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		log.Logf("NATS_URL is undefined - skipping tests")
+		return
+	}
+
+	for _, tc := range listenAddrTestCases {
+		t.Run(tc.address, func(t *testing.T) {
+
+			nOpts := nats.GetDefaultOptions()
+			nOpts.Servers = []string{natsURL}
+			nTport := ntport{
+				nopts: nOpts,
+			}
+			trListener, err := nTport.Listen(tc.address)
+			if err != nil {
+				if tc.mustPass {
+					t.Fatalf("%s (%s) is not allowed", tc.name, tc.address)
+				}
+				// correctly failed
+				return
+			}
+			if trListener.Addr() != tc.address {
+				//special case - since an always string will be returned
+				if tc.name == "default address" {
+					if strings.Contains(trListener.Addr(), "_INBOX.") {
+						return
+					}
+				}
+				t.Errorf("expected address %s but got %s", tc.address, trListener.Addr())
 			}
 		})
 	}
