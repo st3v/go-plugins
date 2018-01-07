@@ -4,7 +4,6 @@ package nats
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -353,13 +352,13 @@ func (n *ntport) Listen(addr string, listenOpts ...transport.ListenOption) (tran
 
 	// make sure addr subject is not empty
 	if len(addr) == 0 {
-		return nil, fmt.Errorf("addr (nats subject) must not be empty")
+		return nil, errors.New("addr (nats subject) must not be empty")
 	}
 
 	// since NATS implements a text based protocol, no space characters are
 	// admitted in the addr (subject name)
 	if strings.Contains(addr, " ") {
-		return nil, fmt.Errorf("addr (nats subject) must not contain space characters")
+		return nil, errors.New("addr (nats subject) must not contain space characters")
 	}
 
 	return &ntportListener{
