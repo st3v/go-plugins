@@ -4,12 +4,14 @@ package nats
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/micro/go-micro/cmd"
+	"github.com/micro/go-micro/server"
 	"github.com/micro/go-micro/transport"
 	"github.com/micro/go-micro/transport/codec/json"
 	"github.com/nats-io/nats"
@@ -344,8 +346,24 @@ func (n *ntport) Listen(addr string, listenOpts ...transport.ListenOption) (tran
 		return nil, err
 	}
 
+	// in case address has not been specifically set, create a new nats.Inbox()
+	if addr == server.DefaultAddress {
+		addr = nats.NewInbox()
+	}
+
+	// make sure addr subject is not empty
+	if len(addr) == 0 {
+		return nil, fmt.Errorf("addr (nats subject) must not be empty")
+	}
+
+	// since NATS implements a text based protocol, no space characters are
+	// admitted in the addr (subject name)
+	if strings.Contains(addr, " ") {
+		return nil, fmt.Errorf("addr (nats subject) must not contain space characters")
+	}
+
 	return &ntportListener{
-		addr: nats.NewInbox(),
+		addr: addr,
 		conn: c,
 		exit: make(chan bool, 1),
 		so:   make(map[string]*ntportSocket),
