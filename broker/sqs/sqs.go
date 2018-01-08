@@ -183,8 +183,16 @@ func (b *sqsBroker) Address() string {
 	return ""
 }
 
-// Connect does nothing as AWS does all queue operations in a single shot with no persistent connection
 func (b *sqsBroker) Connect() error {
+
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+
+	svc := sqs.New(sess)
+	b.svc = svc
+	b.session = sess
+
 	return nil
 }
 
@@ -199,14 +207,6 @@ func (b *sqsBroker) Init(opts ...broker.Option) error {
 	for _, o := range opts {
 		o(&b.options)
 	}
-
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-
-	svc := sqs.New(sess)
-	b.svc = svc
-	b.session = sess
 
 	return nil
 }
