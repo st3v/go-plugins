@@ -96,26 +96,6 @@ func (k *kBroker) Connect() error {
 
 	k.p = p
 
-	config := sc.NewConfig()
-	// TODO: make configurable offset as SubscriberOption
-	config.Config.Consumer.Offsets.Initial = sarama.OffsetNewest
-
-	cs, err := sc.NewClient(k.addrs, config)
-	if err != nil {
-		return err
-	}
-
-	k.sc = cs
-	// TODO: TLS
-	/*
-		opts.Secure = k.opts.Secure
-		opts.TLSConfig = k.opts.TLSConfig
-
-		// secure might not be set
-		if k.opts.TLSConfig != nil {
-			opts.Secure = true
-		}
-	*/
 	return nil
 }
 
@@ -158,7 +138,18 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 		o(&opt)
 	}
 
-	c, err := sc.NewConsumerFromClient(k.sc, opt.Queue, []string{topic})
+	config := sc.NewConfig()
+
+	// TODO: make configurable offset as SubscriberOption
+	config.Config.Consumer.Offsets.Initial = sarama.OffsetNewest
+
+	// we need to create a new client per consumer
+	cs, err := sc.NewClient(k.addrs, config)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := sc.NewConsumerFromClient(cs, opt.Queue, []string{topic})
 	if err != nil {
 		return nil, err
 	}
