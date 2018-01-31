@@ -2,6 +2,8 @@
 package kafka
 
 import (
+	"sync"
+
 	"github.com/Shopify/sarama"
 	"github.com/micro/go-log"
 	"github.com/micro/go-micro/broker"
@@ -16,9 +18,10 @@ type kBroker struct {
 
 	c  sarama.Client
 	p  sarama.SyncProducer
-	sc *sc.Client
+	sc []*sc.Client
 
-	opts broker.Options
+	scMutex sync.Mutex
+	opts    broker.Options
 }
 
 type subscriber struct {
@@ -95,12 +98,20 @@ func (k *kBroker) Connect() error {
 	}
 
 	k.p = p
+	k.scMutex.Lock()
+	defer k.scMutex.Unlock()
+	k.sc = make([]*sc.Client, 0)
 
 	return nil
 }
 
 func (k *kBroker) Disconnect() error {
-	k.sc.Close()
+	k.scMutex.Lock()
+	defer k.scMutex.Unlock()
+	for _, client := range k.sc {
+		client.Close()
+	}
+	k.sc = nil
 	k.p.Close()
 	return k.c.Close()
 }
@@ -128,6 +139,23 @@ func (k *kBroker) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 	return err
 }
 
+func (k *kBroker) getSaramaClusterClient(topic string) (*sc.Client, error) {
+	config := sc.NewConfig()
+
+	// TODO: make configurable offset as SubscriberOption
+	config.Config.Consumer.Offsets.Initial = sarama.OffsetNewest
+
+	cs, err := sc.NewClient(k.addrs, config)
+	if err != nil {
+		return nil, err
+	}
+
+	k.scMutex.Lock()
+	defer k.scMutex.Unlock()
+	k.sc = append(k.sc, cs)
+	return cs, nil
+}
+
 func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	opt := broker.SubscribeOptions{
 		AutoAck: true,
@@ -138,13 +166,8 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 		o(&opt)
 	}
 
-	config := sc.NewConfig()
-
-	// TODO: make configurable offset as SubscriberOption
-	config.Config.Consumer.Offsets.Initial = sarama.OffsetNewest
-
 	// we need to create a new client per consumer
-	cs, err := sc.NewClient(k.addrs, config)
+	cs, err := k.getSaramaClusterClient(topic)
 	if err != nil {
 		return nil, err
 	}
