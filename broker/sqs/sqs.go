@@ -308,7 +308,7 @@ func buildMessageHeader(attribs map[string]*sqs.MessageAttributeValue) map[strin
 }
 
 func (b *sqsBroker) getSQSClient() *sqs.SQS {
-	raw := b.options.Context.Value(sqsClient{})
+	raw := b.options.Context.Value(sqsClientKey{})
 	if raw != nil {
 		s := raw.(*sqs.SQS)
 		return s

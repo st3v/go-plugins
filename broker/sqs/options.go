@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
-type sqsClient struct {}
+type sqsClientKey struct {}
 type dedupFunctionKey struct{}
 type groupIdFunctionKey struct{}
 type maxMessagesKey struct{}
@@ -71,11 +71,11 @@ func WaitTimeSeconds(seconds int64) broker.SubscribeOption {
 }
 
 // SetSQSClient receives an instantiated instance of an SQS client which is used instead of initialising a new client
-func SetSQSClient(svc *sqs.SQS) broker.Option {
+func SetSQSClient(SQSClient *sqs.SQS) broker.Option {
 	return func(o *broker.Options) {
 		if o.Context == nil {
 			o.Context = context.Background()
 		}
-		o.Context = context.WithValue(o.Context, sqsClient{}, svc)
+		o.Context = context.WithValue(o.Context, sqsClientKey{}, SQSClient)
 	}
 }
