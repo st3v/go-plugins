@@ -183,7 +183,6 @@ func (b *sqsBroker) Address() string {
 }
 
 func (b *sqsBroker) Connect() error {
-
 	if svc := b.getSQSClient(); svc != nil {
 		b.svc = svc
 		return nil
@@ -206,7 +205,6 @@ func (b *sqsBroker) Disconnect() error {
 
 // Init initializes a broker and configures an AWS session and SQS struct
 func (b *sqsBroker) Init(opts ...broker.Option) error {
-
 	for _, o := range opts {
 		o(&b.options)
 	}
