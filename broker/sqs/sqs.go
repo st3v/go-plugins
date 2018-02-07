@@ -24,7 +24,6 @@ const (
 
 // Amazon SQS Broker
 type sqsBroker struct {
-	session *session.Session
 	svc     *sqs.SQS
 	options broker.Options
 }
@@ -185,13 +184,17 @@ func (b *sqsBroker) Address() string {
 
 func (b *sqsBroker) Connect() error {
 
+	if svc := b.getSQSClient(); svc != nil {
+		b.svc = svc
+		return nil
+	}
+
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 
 	svc := sqs.New(sess)
 	b.svc = svc
-	b.session = sess
 
 	return nil
 }
@@ -302,6 +305,15 @@ func buildMessageHeader(attribs map[string]*sqs.MessageAttributeValue) map[strin
 		res[k] = *v.StringValue
 	}
 	return res
+}
+
+func (b *sqsBroker) getSQSClient() *sqs.SQS {
+	raw := b.options.Context.Value(sqsClientKey{})
+	if raw != nil {
+		s := raw.(*sqs.SQS)
+		return s
+	}
+	return nil
 }
 
 func (b *sqsBroker) generateGroupID(m *broker.Message) *string {
