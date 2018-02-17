@@ -139,6 +139,10 @@ func (r *rbroker) Init(opts ...broker.Option) error {
 	for _, o := range opts {
 		o(&r.opts)
 	}
+
+	exchange := getExchange(r.opts.Context)
+	r.conn = newRabbitMQConn(exchange, r.opts.Addrs)
+
 	return nil
 }
 
@@ -159,14 +163,18 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 		o(&options)
 	}
 
-	var exchange string
-	if e, ok := options.Context.Value(exchangeKey{}).(string); ok {
-		exchange = e
-	}
+	exchange := getExchange(options.Context)
 
 	return &rbroker{
 		conn:  newRabbitMQConn(exchange, options.Addrs),
 		addrs: options.Addrs,
 		opts:  options,
 	}
+}
+
+func getExchange(ctx context.Context) string {
+	if e, ok := ctx.Value(exchangeKey{}).(string); ok {
+		return e
+	}
+	return DefaultExchange
 }
