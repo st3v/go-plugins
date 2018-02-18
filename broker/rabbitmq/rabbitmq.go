@@ -67,7 +67,7 @@ func (r *rbroker) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 	}
 
 	if r.conn == nil {
-		return errors.New("Connection wasn't created")
+		return errors.New("connection is nil")
 	}
 
 	return r.conn.Publish(r.conn.exchange, topic, m)
@@ -95,7 +95,7 @@ func (r *rbroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 	}
 
 	if r.conn == nil {
-		return nil, errors.New("Connection wasn't created")
+		return nil, errors.New("connection is nil")
 	}
 
 	ch, sub, err := r.conn.Consume(
@@ -161,7 +161,7 @@ func (r *rbroker) Connect() error {
 
 func (r *rbroker) Disconnect() error {
 	if r.conn == nil {
-		return errors.New("Connection wasn't created")
+		return errors.New("connection is nil")
 	}
 	return r.conn.Close()
 }
