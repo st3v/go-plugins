@@ -4,6 +4,7 @@ package rabbitmq
 import (
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/cmd"
+	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
 )
@@ -64,6 +65,10 @@ func (r *rbroker) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 		m.Headers[k] = v
 	}
 
+	if r.conn == nil {
+		return errors.New("Connection wasn't created")
+	}
+
 	return r.conn.Publish(r.conn.exchange, topic, m)
 }
 
@@ -86,6 +91,10 @@ func (r *rbroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 		if h, ok := opt.Context.Value(headersKey{}).(map[string]interface{}); ok {
 			headers = h
 		}
+	}
+
+	if r.conn == nil {
+		return nil, errors.New("Connection wasn't created")
 	}
 
 	ch, sub, err := r.conn.Consume(
@@ -143,11 +152,16 @@ func (r *rbroker) Init(opts ...broker.Option) error {
 }
 
 func (r *rbroker) Connect() error {
-	r.conn = newRabbitMQConn(r.getExchange(), r.opts.Addrs)
+	if r.conn == nil {
+		r.conn = newRabbitMQConn(r.getExchange(), r.opts.Addrs)
+	}
 	return r.conn.Connect(r.opts.Secure, r.opts.TLSConfig)
 }
 
 func (r *rbroker) Disconnect() error {
+	if r.conn == nil {
+		return errors.New("Connection wasn't created")
+	}
 	return r.conn.Close()
 }
 
