@@ -8,16 +8,22 @@ import (
 
 type memoryWatcher struct {
 	id   string
+	wo   registry.WatchOptions
 	res  chan *registry.Result
 	exit chan bool
 }
 
 func (m *memoryWatcher) Next() (*registry.Result, error) {
-	select {
-	case r := <-m.res:
-		return r, nil
-	case <-m.exit:
-		return nil, errors.New("watcher stopped")
+	for {
+		select {
+		case r := <-m.res:
+			if len(m.wo.Service) > 0 && m.wo.Service != r.Service.Name {
+				continue
+			}
+			return r, nil
+		case <-m.exit:
+			return nil, errors.New("watcher stopped")
+		}
 	}
 }
 

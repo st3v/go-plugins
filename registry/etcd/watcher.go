@@ -15,7 +15,12 @@ type etcdWatcher struct {
 	w    etcd.Watcher
 }
 
-func newEtcdWatcher(r *etcdRegistry) (registry.Watcher, error) {
+func newEtcdWatcher(r *etcdRegistry, opts ...registry.WatchOption) (registry.Watcher, error) {
+	var wo registry.WatchOptions
+	for _, o := range opts {
+		o(&wo)
+	}
+
 	var once sync.Once
 	ctx, cancel := context.WithCancel(context.Background())
 	stop := make(chan bool, 1)
@@ -25,9 +30,16 @@ func newEtcdWatcher(r *etcdRegistry) (registry.Watcher, error) {
 		cancel()
 	}()
 
+	// watch everything by default
+	watchPath := prefix
+	// watch a service
+	if len(wo.Service) > 0 {
+		watchPath = servicePath(wo.Service)
+	}
+
 	return &etcdWatcher{
 		ctx:  ctx,
-		w:    r.client.Watcher(prefix, &etcd.WatcherOptions{AfterIndex: 0, Recursive: true}),
+		w:    r.client.Watcher(watchPath, &etcd.WatcherOptions{AfterIndex: 0, Recursive: true}),
 		once: &once,
 		stop: stop,
 	}, nil

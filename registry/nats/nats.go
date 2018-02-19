@@ -322,7 +322,7 @@ func (n *natsRegistry) ListServices() ([]*registry.Service, error) {
 	return services, nil
 }
 
-func (n *natsRegistry) Watch() (registry.Watcher, error) {
+func (n *natsRegistry) Watch(opts ...registry.WatchOption) (registry.Watcher, error) {
 	conn, err := n.getConn()
 	if err != nil {
 		return nil, err
@@ -333,7 +333,12 @@ func (n *natsRegistry) Watch() (registry.Watcher, error) {
 		return nil, err
 	}
 
-	return &natsWatcher{sub}, nil
+	var wo registry.WatchOptions
+	for _, o := range opts {
+		o(&wo)
+	}
+
+	return &natsWatcher{sub, wo}, nil
 }
 
 func (n *natsRegistry) String() string {

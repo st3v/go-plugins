@@ -14,13 +14,31 @@ type eurekaWatcher struct {
 	results chan *registry.Result
 }
 
-func newWatcher(conn fargoConnection) registry.Watcher {
+func newWatcher(conn fargoConnection, opts ...registry.WatchOption) registry.Watcher {
+	var wo registry.WatchOptions
+	for _, o := range opts {
+		o(&wo)
+	}
+
 	w := &eurekaWatcher{
 		conn:    conn,
 		exit:    make(chan bool),
 		results: make(chan *registry.Result),
 	}
 
+	// watch a single service
+	if len(wo.Service) > 0 {
+		done := make(chan struct{})
+		ch := conn.ScheduleAppUpdates(wo.Service, false, done)
+		go w.watch(ch, done)
+		go func() {
+			<-w.exit
+			close(done)
+		}()
+		return w
+	}
+
+	// watch all services
 	go w.poll()
 	return w
 }

@@ -115,8 +115,8 @@ func (e *eurekaRegistry) ListServices() ([]*registry.Service, error) {
 	return services, nil
 }
 
-func (e *eurekaRegistry) Watch() (registry.Watcher, error) {
-	return newWatcher(e.conn), nil
+func (e *eurekaRegistry) Watch(opts ...registry.WatchOption) (registry.Watcher, error) {
+	return newWatcher(e.conn, opts...), nil
 }
 
 func (e *eurekaRegistry) String() string {

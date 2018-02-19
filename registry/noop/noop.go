@@ -28,7 +28,7 @@ func (m *noopRegistry) Deregister(s *registry.Service) error {
 	return nil
 }
 
-func (m *noopRegistry) Watch() (registry.Watcher, error) {
+func (m *noopRegistry) Watch(opts ...registry.WatchOption) (registry.Watcher, error) {
 	return &noopWatcher{exit: make(chan bool)}, nil
 }
 

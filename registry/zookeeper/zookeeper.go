@@ -216,8 +216,8 @@ func (z *zookeeperRegistry) String() string {
 	return "zookeeper"
 }
 
-func (z *zookeeperRegistry) Watch() (registry.Watcher, error) {
-	return newZookeeperWatcher(z)
+func (z *zookeeperRegistry) Watch(opts ...registry.WatchOption) (registry.Watcher, error) {
+	return newZookeeperWatcher(z, opts...)
 }
 
 func NewRegistry(opts ...registry.Option) registry.Registry {

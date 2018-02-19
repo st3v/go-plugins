@@ -90,11 +90,17 @@ func (m *memoryRegistry) Deregister(s *registry.Service) error {
 	return nil
 }
 
-func (m *memoryRegistry) Watch() (registry.Watcher, error) {
+func (m *memoryRegistry) Watch(opts ...registry.WatchOption) (registry.Watcher, error) {
+	var wo registry.WatchOptions
+	for _, o := range opts {
+		o(&wo)
+	}
+
 	w := &memoryWatcher{
 		exit: make(chan bool),
 		res:  make(chan *registry.Result),
 		id:   uuid.NewUUID().String(),
+		wo:   wo,
 	}
 
 	m.Lock()

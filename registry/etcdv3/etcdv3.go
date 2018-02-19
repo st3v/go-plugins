@@ -234,8 +234,8 @@ func (e *etcdv3Registry) ListServices() ([]*registry.Service, error) {
 	return services, nil
 }
 
-func (e *etcdv3Registry) Watch() (registry.Watcher, error) {
-	return newEtcdv3Watcher(e, e.options.Timeout)
+func (e *etcdv3Registry) Watch(opts ...registry.WatchOption) (registry.Watcher, error) {
+	return newEtcdv3Watcher(e, e.options.Timeout, opts...)
 }
 
 func (e *etcdv3Registry) String() string {

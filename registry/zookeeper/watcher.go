@@ -9,6 +9,7 @@ import (
 )
 
 type zookeeperWatcher struct {
+	wo      registry.WatchOptions
 	client  *zk.Conn
 	stop    chan bool
 	results chan result
@@ -25,8 +26,14 @@ type result struct {
 	err error
 }
 
-func newZookeeperWatcher(r *zookeeperRegistry) (registry.Watcher, error) {
+func newZookeeperWatcher(r *zookeeperRegistry, opts ...registry.WatchOption) (registry.Watcher, error) {
+	var wo registry.WatchOptions
+	for _, o := range opts {
+		o(&wo)
+	}
+
 	zw := &zookeeperWatcher{
+		wo:      wo,
 		client:  r.client,
 		stop:    make(chan bool),
 		results: make(chan result),
@@ -139,15 +146,20 @@ func (zw *zookeeperWatcher) watchKey(key string, respChan chan watchResponse) {
 }
 
 func (zw *zookeeperWatcher) watch() {
+	watchPath := prefix
+	if len(zw.wo.Service) > 0 {
+		watchPath = servicePath(zw.wo.Service)
+	}
+
 	//get all Services
-	services, _, err := zw.client.Children(prefix)
+	services, _, err := zw.client.Children(watchPath)
 	if err != nil {
 		zw.results <- result{nil, err}
 	}
 	respChan := make(chan watchResponse)
 
 	//watch the prefix for new child nodes
-	go zw.watchDir(prefix, respChan)
+	go zw.watchDir(watchPath, respChan)
 
 	//watch every service
 	for _, service := range services {
