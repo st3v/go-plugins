@@ -57,6 +57,10 @@ func servicePath(s string) string {
 	return path.Join(prefix, strings.Replace(s, "/", "-", -1))
 }
 
+func (e *etcdv3Registry) Options() registry.Options {
+	return e.options
+}
+
 func (e *etcdv3Registry) Deregister(s *registry.Service) error {
 	if len(s.Nodes) == 0 {
 		return errors.New("Require at least one node")

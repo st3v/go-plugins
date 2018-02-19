@@ -12,6 +12,8 @@ import (
 )
 
 type memoryRegistry struct {
+	options registry.Options
+
 	sync.RWMutex
 	services map[string][]*registry.Service
 	watchers map[string]*memoryWatcher
@@ -47,6 +49,10 @@ func (m *memoryRegistry) watch(r *registry.Result) {
 			}
 		}
 	}
+}
+
+func (m *memoryRegistry) Options() registry.Options {
+	return m.options
 }
 
 func (m *memoryRegistry) GetService(service string) ([]*registry.Service, error) {
@@ -128,6 +134,7 @@ func NewRegistry(opts ...registry.Option) registry.Registry {
 	}
 
 	return &memoryRegistry{
+		options:  options,
 		services: services,
 		watchers: make(map[string]*memoryWatcher),
 	}

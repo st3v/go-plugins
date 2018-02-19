@@ -71,6 +71,10 @@ func newRegistry(opts ...registry.Option) registry.Registry {
 	}
 }
 
+func (e *eurekaRegistry) Options() registry.Options {
+	return e.opts
+}
+
 func (e *eurekaRegistry) Register(s *registry.Service, opts ...registry.RegisterOption) error {
 	instance, err := serviceToInstance(s)
 	if err != nil {

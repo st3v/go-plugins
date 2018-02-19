@@ -44,6 +44,10 @@ func newRegistry(opts ...registry.Option) registry.Registry {
 	}
 }
 
+func (s *sidecar) Options() registry.Options {
+	return s.opts
+}
+
 func (s *sidecar) Register(service *registry.Service, opts ...registry.RegisterOption) error {
 	b, err := json.Marshal(service)
 	if err != nil {

@@ -259,6 +259,10 @@ loop:
 	return services, nil
 }
 
+func (n *natsRegistry) Options() registry.Options {
+	return n.opts
+}
+
 func (n *natsRegistry) Register(s *registry.Service, opts ...registry.RegisterOption) error {
 	if err := n.register(s); err != nil {
 		return err

@@ -37,6 +37,7 @@ type delegate struct {
 type gossipRegistry struct {
 	broadcasts *memberlist.TransmitLimitedQueue
 	updates    chan *update
+	options    registry.Options
 
 	sync.RWMutex
 	services map[string][]*registry.Service
@@ -341,6 +342,10 @@ func (m *gossipRegistry) run() {
 	}
 }
 
+func (m *gossipRegistry) Options() registry.Options {
+	return m.options
+}
+
 func (m *gossipRegistry) Register(s *registry.Service, opts ...registry.RegisterOption) error {
 	m.Lock()
 	if service, ok := m.services[s.Name]; !ok {
@@ -451,6 +456,7 @@ func NewRegistry(opts ...registry.Option) registry.Registry {
 	}
 
 	mr := &gossipRegistry{
+		options:    options,
 		broadcasts: broadcasts,
 		services:   make(map[string][]*registry.Service),
 		updates:    updates,
