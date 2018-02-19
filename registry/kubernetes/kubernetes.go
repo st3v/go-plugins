@@ -221,8 +221,8 @@ func (c *kregistry) ListServices() ([]*registry.Service, error) {
 }
 
 // Watch returns a kubernetes watcher
-func (c *kregistry) Watch() (registry.Watcher, error) {
-	return newWatcher(c)
+func (c *kregistry) Watch(opts ...registry.WatchOption) (registry.Watcher, error) {
+	return newWatcher(c, opts...)
 }
 
 func (c *kregistry) String() string {

@@ -202,13 +202,22 @@ func (s *sidecar) ListServices() ([]*registry.Service, error) {
 	return nil, gerr
 }
 
-func (s *sidecar) Watch() (registry.Watcher, error) {
+func (s *sidecar) Watch(opts ...registry.WatchOption) (registry.Watcher, error) {
+	var wo registry.WatchOptions
+	for _, o := range opts {
+		o(&wo)
+	}
+
 	watch := func(addr string) (registry.Watcher, error) {
 		scheme := "ws"
 		if s.opts.Secure {
 			scheme = "wss"
 		}
 		url := fmt.Sprintf("%s://%s/registry", scheme, addr)
+		// service filter
+		if len(wo.Service) > 0 {
+			url = url + "?service=" + wo.Service
+		}
 		return newWatcher(url)
 	}
 

@@ -10,6 +10,7 @@ import (
 
 type natsWatcher struct {
 	sub *nats.Subscription
+	wo  registry.WatchOptions
 }
 
 func (n *natsWatcher) Next() (*registry.Result, error) {
@@ -24,8 +25,12 @@ func (n *natsWatcher) Next() (*registry.Result, error) {
 		if err := json.Unmarshal(m.Data, &result); err != nil {
 			return nil, err
 		}
+		if len(n.wo.Service) > 0 && result.Service.Name != n.wo.Service {
+			continue
+		}
 		break
 	}
+
 	return result, nil
 }
 

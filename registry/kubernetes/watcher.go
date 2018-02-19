@@ -205,9 +205,21 @@ func (k *k8sWatcher) Stop() {
 	}
 }
 
-func newWatcher(kr *kregistry) (registry.Watcher, error) {
+func newWatcher(kr *kregistry, opts ...registry.WatchOption) (registry.Watcher, error) {
+	var wo registry.WatchOptions
+	for _, o := range opts {
+		o(&wo)
+	}
+
+	selector := podSelector
+	if len(wo.Service) > 0 {
+		selector = map[string]string{
+			svcSelectorPrefix + serviceName(wo.Service): svcSelectorValue,
+		}
+	}
+
 	// Create watch request
-	watcher, err := kr.client.WatchPods(podSelector)
+	watcher, err := kr.client.WatchPods(selector)
 	if err != nil {
 		return nil, err
 	}

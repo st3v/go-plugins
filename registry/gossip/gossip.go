@@ -418,9 +418,9 @@ func (m *gossipRegistry) ListServices() ([]*registry.Service, error) {
 	return services, nil
 }
 
-func (m *gossipRegistry) Watch() (registry.Watcher, error) {
+func (m *gossipRegistry) Watch(opts ...registry.WatchOption) (registry.Watcher, error) {
 	n, e := m.subscribe()
-	return newGossipWatcher(n, e)
+	return newGossipWatcher(n, e, opts...)
 }
 
 func (m *gossipRegistry) String() string {
