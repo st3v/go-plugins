@@ -173,3 +173,7 @@ func (m *mockClient) Unsubscribe(topics ...string) mqtt.Token {
 
 	return &mqtt.UnsubscribeToken{}
 }
+
+func (m *mockClient) OptionsReader() mqtt.ClientOptionsReader {
+	return mqtt.ClientOptionsReader{}
+}
