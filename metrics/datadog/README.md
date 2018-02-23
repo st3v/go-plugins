@@ -35,6 +35,18 @@ func main() {
 	b = middleware.LogBrokerWrapper(
 		middleware.MetricBrokerWrapper(b, m, time.Millisecond),
 	)
+    // Subscribe to broker, setting up a durable queue with auto ack disabled
+    // eventsubscriber is a package implementing broker.Handler
+    _, err := b.Subscribe(
+		"routing.key",
+		eventsubscriber.NewBrokerHandler(subscriber.NewSubscriber("greeter")),
+		broker.Queue("greeter"),
+		broker.DisableAutoAck(),
+		rabbitmq.DurableQueue(),
+	)
+	if err != nil {
+		log.Fatalf("Could not subscribe handler to broker: %v", err)
+	}
 
 	// Create service
 	service := micro.NewService(
