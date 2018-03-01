@@ -139,7 +139,7 @@ func main() {
 		),
 	)
 
-	fmt.Println("\n--- Traced Call example ---\n")
+	fmt.Println("\n--- Traced Call example ---")
 	for i := 0; i < 10; i++ {
 		call(i)
 	}
