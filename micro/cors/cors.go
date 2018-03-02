@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/micro/cli"
-	"github.com/micro/micro/api"
 	"github.com/micro/micro/plugin"
 	"github.com/rs/cors"
 )
@@ -82,8 +81,4 @@ func NewPlugin() plugin.Plugin {
 		allowedOrigins: []string{},
 		allowedMethods: []string{},
 	}
-}
-
-func init() {
-	api.Register(NewPlugin())
 }
