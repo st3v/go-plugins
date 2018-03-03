@@ -2,6 +2,7 @@
 package grpc
 
 import (
+	"context"
 	"crypto/tls"
 	"net"
 
@@ -15,8 +16,6 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	pb "github.com/micro/go-plugins/transport/grpc/proto"
-
-	"golang.org/x/net/context"
 )
 
 type grpcTransport struct {

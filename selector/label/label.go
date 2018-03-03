@@ -1,13 +1,12 @@
 package label
 
 import (
+	"context"
 	"sync"
 
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/selector"
-
-	"golang.org/x/net/context"
 )
 
 type labelSelector struct {

@@ -1,9 +1,10 @@
 package sqs
 
 import (
+	"context"
+
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/micro/go-micro/broker"
-	"golang.org/x/net/context"
 )
 
 type sqsClientKey struct{}

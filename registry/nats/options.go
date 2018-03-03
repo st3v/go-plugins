@@ -1,9 +1,10 @@
 package nats
 
 import (
+	"context"
+
 	"github.com/micro/go-micro/registry"
 	"github.com/nats-io/nats"
-	"golang.org/x/net/context"
 )
 
 type contextQuorumKey struct{}

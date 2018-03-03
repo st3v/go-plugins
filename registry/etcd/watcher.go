@@ -1,11 +1,11 @@
 package etcd
 
 import (
+	"context"
 	"sync"
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/micro/go-micro/registry"
-	"golang.org/x/net/context"
 )
 
 type etcdWatcher struct {

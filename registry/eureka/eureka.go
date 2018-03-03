@@ -6,10 +6,9 @@ package eureka
 */
 
 import (
+	"context"
 	"net/http"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/hudl/fargo"
 	"github.com/micro/go-micro/cmd"

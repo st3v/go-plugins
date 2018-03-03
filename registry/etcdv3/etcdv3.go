@@ -2,6 +2,7 @@
 package etcdv3
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -9,8 +10,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/micro/go-micro/cmd"

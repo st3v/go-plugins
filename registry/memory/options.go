@@ -1,8 +1,9 @@
 package memory
 
 import (
+	"context"
+
 	"github.com/micro/go-micro/registry"
-	"golang.org/x/net/context"
 )
 
 type servicesKey struct{}

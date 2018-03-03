@@ -1,8 +1,9 @@
 package label
 
 import (
+	"context"
+
 	"github.com/micro/go-micro/selector"
-	"golang.org/x/net/context"
 )
 
 type labelKey struct{}

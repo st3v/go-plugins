@@ -1,10 +1,10 @@
 package googlepubsub
 
 import (
+	"context"
 	"time"
 
 	"github.com/micro/go-micro/broker"
-	"golang.org/x/net/context"
 	"google.golang.org/api/option"
 )
 

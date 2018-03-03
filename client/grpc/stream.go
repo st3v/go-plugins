@@ -1,14 +1,13 @@
 package grpc
 
 import (
+	"context"
 	"io"
 	"sync"
 
 	"github.com/micro/go-micro/client"
 
 	"google.golang.org/grpc"
-
-	"golang.org/x/net/context"
 )
 
 // Implements the streamer interface

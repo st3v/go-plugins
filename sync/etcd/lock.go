@@ -1,14 +1,13 @@
 package etcd
 
 import (
+	"context"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/coreos/etcd/client"
 	"github.com/micro/go-os/sync"
-
-	"golang.org/x/net/context"
 )
 
 type etcdLock struct {

@@ -9,7 +9,7 @@ import (
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/selector"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type shard struct {

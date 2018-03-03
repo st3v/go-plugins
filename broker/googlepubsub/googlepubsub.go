@@ -2,13 +2,13 @@
 package googlepubsub
 
 import (
+	"context"
 	"time"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/cmd"
 	"github.com/pborman/uuid"
-	"golang.org/x/net/context"
 	"google.golang.org/api/option"
 )
 

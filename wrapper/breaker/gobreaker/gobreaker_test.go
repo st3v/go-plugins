@@ -8,7 +8,7 @@ import (
 	"github.com/micro/go-micro/selector"
 	"github.com/sony/gobreaker"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 func TestBreaker(t *testing.T) {
