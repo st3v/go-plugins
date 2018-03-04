@@ -2,12 +2,12 @@
 package rabbitmq
 
 import (
+	"context"
 	"errors"
 
 	"github.com/micro/go-micro/broker"
 	"github.com/micro/go-micro/cmd"
 	"github.com/streadway/amqp"
-	"golang.org/x/net/context"
 )
 
 type rbroker struct {

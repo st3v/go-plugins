@@ -7,13 +7,12 @@ package grpc
 // Meh, we need to get rid of this shit
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"sync"
 	"unicode"
 	"unicode/utf8"
-
-	"golang.org/x/net/context"
 
 	"github.com/micro/go-log"
 	"github.com/micro/go-micro/server"

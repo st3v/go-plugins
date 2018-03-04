@@ -2,6 +2,7 @@
 package etcd
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -15,7 +16,6 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
-	"golang.org/x/net/context"
 )
 
 var (

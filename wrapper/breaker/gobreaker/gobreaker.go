@@ -4,7 +4,7 @@ import (
 	"github.com/micro/go-micro/client"
 	"github.com/sony/gobreaker"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type clientWrapper struct {

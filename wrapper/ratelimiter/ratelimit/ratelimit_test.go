@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"context"
 	"github.com/juju/ratelimit"
 	"github.com/micro/go-micro/client"
 	"github.com/micro/go-micro/errors"
 	"github.com/micro/go-micro/registry/mock"
 	"github.com/micro/go-micro/selector"
 	"github.com/micro/go-micro/server"
-	"golang.org/x/net/context"
 )
 
 type testHandler struct{}

@@ -1,9 +1,9 @@
 package nsq
 
 import (
-	"github.com/micro/go-micro/broker"
+	"context"
 
-	"golang.org/x/net/context"
+	"github.com/micro/go-micro/broker"
 )
 
 type contextKeyT string

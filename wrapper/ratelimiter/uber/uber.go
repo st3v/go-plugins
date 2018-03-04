@@ -5,7 +5,7 @@ import (
 	"github.com/micro/go-micro/server"
 	"go.uber.org/ratelimit"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type clientWrapper struct {

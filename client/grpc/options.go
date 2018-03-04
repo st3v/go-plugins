@@ -2,10 +2,10 @@
 package grpc
 
 import (
+	"context"
 	"crypto/tls"
 
 	"github.com/micro/go-micro/client"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 

@@ -3,6 +3,7 @@ package grpc
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	errs "errors"
 	"fmt"
@@ -22,8 +23,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	gmetadata "google.golang.org/grpc/metadata"
-
-	"golang.org/x/net/context"
 )
 
 type grpcClient struct {

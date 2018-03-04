@@ -1,10 +1,10 @@
 package eureka
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
-	"golang.org/x/net/context"
 	"golang.org/x/oauth2/clientcredentials"
 
 	"github.com/micro/go-micro/registry"

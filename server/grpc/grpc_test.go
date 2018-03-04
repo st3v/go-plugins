@@ -1,11 +1,11 @@
 package grpc
 
 import (
+	"context"
 	"testing"
 
 	"github.com/micro/go-micro/registry/mock"
 	"github.com/micro/go-micro/server"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
 	pb "github.com/micro/examples/greeter/srv/proto/hello"

@@ -12,7 +12,7 @@ import (
 
 	proto "github.com/micro/quota-srv/proto"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type quota struct {

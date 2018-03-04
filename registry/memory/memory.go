@@ -2,13 +2,13 @@
 package memory
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
 	"github.com/pborman/uuid"
-	"golang.org/x/net/context"
 )
 
 type memoryRegistry struct {

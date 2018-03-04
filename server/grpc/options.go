@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"context"
 	"crypto/tls"
 
 	"github.com/micro/go-micro/broker"
@@ -9,7 +10,6 @@ import (
 	"github.com/micro/go-micro/server"
 	"github.com/micro/go-micro/server/debug"
 	"github.com/micro/go-micro/transport"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 

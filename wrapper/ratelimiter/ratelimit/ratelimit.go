@@ -8,7 +8,7 @@ import (
 	"github.com/micro/go-micro/errors"
 	"github.com/micro/go-micro/server"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type clientWrapper struct {

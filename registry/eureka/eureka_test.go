@@ -1,11 +1,10 @@
 package eureka
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"testing"
-
-	"golang.org/x/net/context"
 
 	"github.com/hudl/fargo"
 	"github.com/micro/go-micro/registry"

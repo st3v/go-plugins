@@ -1,10 +1,10 @@
 package whitelist
 
 import (
+	"context"
+
 	"github.com/micro/go-micro/client"
 	"github.com/micro/go-micro/errors"
-
-	"golang.org/x/net/context"
 )
 
 type wrapper struct {

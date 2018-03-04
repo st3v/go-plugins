@@ -1,12 +1,12 @@
 package etcdv3
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/micro/go-micro/registry"
-	"golang.org/x/net/context"
 )
 
 type etcdv3Watcher struct {

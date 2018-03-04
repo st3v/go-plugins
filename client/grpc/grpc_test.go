@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"context"
 	"net"
 	"strconv"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/registry/mock"
 	"github.com/micro/go-micro/selector"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 )

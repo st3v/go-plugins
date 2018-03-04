@@ -2,11 +2,10 @@
 package redis
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/micro/go-micro/broker"

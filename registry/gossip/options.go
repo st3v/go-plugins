@@ -1,9 +1,9 @@
 package gossip
 
 import (
-	"github.com/micro/go-micro/registry"
+	"context"
 
-	"golang.org/x/net/context"
+	"github.com/micro/go-micro/registry"
 )
 
 type contextSecretKey struct{}

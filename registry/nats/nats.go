@@ -2,12 +2,11 @@
 package nats
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/micro/go-micro/cmd"
 	"github.com/micro/go-micro/registry"
