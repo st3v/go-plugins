@@ -23,6 +23,7 @@ import (
 	meta "github.com/micro/go-micro/metadata"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/server"
+	"github.com/micro/misc/lib/addr"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -584,7 +585,7 @@ func (g *grpcServer) Register() error {
 		host = parts[0]
 	}
 
-	addr, err := extractAddress(host)
+	addr, err := addr.Extract(host)
 	if err != nil {
 		return err
 	}
@@ -704,7 +705,7 @@ func (g *grpcServer) Deregister() error {
 		host = parts[0]
 	}
 
-	addr, err := extractAddress(host)
+	addr, err := addr.Extract(host)
 	if err != nil {
 		return err
 	}
