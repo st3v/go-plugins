@@ -11,10 +11,12 @@ import (
 	"github.com/micro/go-micro/server/debug"
 	"github.com/micro/go-micro/transport"
 	"google.golang.org/grpc"
+	grpcTransport "google.golang.org/grpc/transport"
 )
 
 type codecsKey struct{}
 type tlsAuth struct{}
+type http2TransportConfig struct{}
 
 // gRPC Codec to be used to encode/decode requests for a given content type
 func Codec(contentType string, c grpc.Codec) server.Option {
@@ -38,6 +40,16 @@ func AuthTLS(t *tls.Config) server.Option {
 			o.Context = context.Background()
 		}
 		o.Context = context.WithValue(o.Context, tlsAuth{}, t)
+	}
+}
+
+// http2TransportConfig should be used to setup a gRPC transport (http2 server) config
+func Http2TransportConfig(sc *grpcTransport.ServerConfig) server.Option {
+	return func(o *server.Options) {
+		if o.Context == nil {
+			o.Context = context.Background()
+		}
+		o.Context = context.WithValue(o.Context, http2TransportConfig{}, sc)
 	}
 }
 

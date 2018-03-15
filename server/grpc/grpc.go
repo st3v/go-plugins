@@ -80,6 +80,15 @@ func (g *grpcServer) getCredentials() credentials.TransportCredentials {
 	return nil
 }
 
+func (g *grpcServer) getHttp2TransportConfig() transport.ServerConfig {
+	if g.opts.Context != nil {
+		if v := g.opts.Context.Value(http2TransportConfig{}); v != nil {
+			return *v.(*transport.ServerConfig)
+		}
+	}
+	return transport.ServerConfig{}
+}
+
 func (g *grpcServer) serve(l net.Listener) error {
 	defer l.Close()
 
@@ -127,7 +136,10 @@ func (g *grpcServer) accept(rawConn net.Conn) {
 		return
 	}
 
-	st, err := transport.NewServerTransport("http2", conn, &transport.ServerConfig{AuthInfo: authInfo})
+	serverConfig := g.getHttp2TransportConfig()
+	serverConfig.AuthInfo = authInfo
+
+	st, err := transport.NewServerTransport("http2", conn, &serverConfig)
 	if err != nil {
 		conn.Close()
 		return
