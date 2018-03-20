@@ -48,9 +48,7 @@ type grpcServer struct {
 	handlers    map[string]server.Handler
 	subscribers map[*subscriber][]broker.Subscriber
 	// used for first registration
-	registered     bool
-	securityOption grpc.DialOption
-	credentials    credentials.TransportCredentials
+	registered bool
 }
 
 func init() {
@@ -68,14 +66,12 @@ func newGRPCServer(opts ...server.Option) server.Server {
 		handlers:    make(map[string]server.Handler),
 		subscribers: make(map[*subscriber][]broker.Subscriber),
 		exit:        make(chan chan error),
-		credentials: getCredentiaksOption(options),
 	}
 }
 
-func getCredentiaksOption(opts server.Options) credentials.TransportCredentials {
-
-	if opts.Context != nil {
-		if v := opts.Context.Value(tlsAuth{}); v != nil {
+func (g *grpcServer) getCredentials() credentials.TransportCredentials {
+	if g.opts.Context != nil {
+		if v := g.opts.Context.Value(tlsAuth{}); v != nil {
 			tls := v.(*tls.Config)
 			return credentials.NewTLS(tls)
 		}
@@ -116,14 +112,13 @@ func (g *grpcServer) serve(l net.Listener) error {
 }
 
 func (g *grpcServer) useTransportAuthenticator(rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
-	if g.credentials == nil {
-		return rawConn, nil, nil
+	if creds := g.getCredentials(); creds != nil {
+		return creds.ServerHandshake(rawConn)
 	}
-	return g.credentials.ServerHandshake(rawConn)
+	return rawConn, nil, nil
 }
 
 func (g *grpcServer) accept(rawConn net.Conn) {
-
 	conn, authInfo, err := g.useTransportAuthenticator(rawConn)
 
 	if err != nil {
