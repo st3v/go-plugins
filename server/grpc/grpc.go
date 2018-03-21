@@ -24,6 +24,7 @@ import (
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/server"
 	"github.com/micro/misc/lib/addr"
+	mgrpc "github.com/micro/misc/lib/grpc"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -156,44 +157,17 @@ func (g *grpcServer) accept(rawConn net.Conn) {
 }
 
 func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.Stream) {
-	// Ensure Foo.Bar, /helloworld.Foo/Bar or /greeter.hello.world.Foo/Bar
-	// Internally we only know of Foo.Bar
-	serviceMethod := strings.Split(stream.Method(), ".")
-
-	// Ensure at least 2 parts and not blank
-	if len(serviceMethod) < 2 || len(serviceMethod[0]) == 0 || len(serviceMethod[1]) == 0 {
-		err := t.WriteStatus(stream, status.New(codes.InvalidArgument, fmt.Sprintf("malformed method name: %q", stream.Method())))
-		if err != nil {
-			log.Logf("grpc: Server.serveStream failed to write status: %v", err)
-		}
-		return
-	}
-
-	// is grpc method? /greeter.hello.world.Foo/Bar or /helloworld.Foo/Bar
-	if serviceMethod[0][0] == '/' {
-		// operate on Foo/Bar
-		parts := strings.Split(serviceMethod[len(serviceMethod)-1], "/")
-		if len(parts) != 2 {
-			err := t.WriteStatus(stream, status.New(codes.InvalidArgument, fmt.Sprintf("malformed method name: %q", stream.Method())))
-			if err != nil {
-				log.Logf("grpc: Server.serveStream failed to write status: %v", err)
-			}
-			return
-		}
-		// replace method
-		serviceMethod[0] = parts[0]
-		serviceMethod[1] = parts[1]
-		// not a grpc method, so we expect 2 parts
-	} else if len(serviceMethod) != 2 {
-		err := t.WriteStatus(stream, status.New(codes.InvalidArgument, fmt.Sprintf("malformed method name: %q", stream.Method())))
-		if err != nil {
-			log.Logf("grpc: Server.serveStream failed to write status: %v", err)
+	// get Go method from stream method
+	serviceName, methodName, err := mgrpc.ServiceMethod(stream.Method())
+	if err != nil {
+		if gerr := t.WriteStatus(stream, status.New(codes.InvalidArgument, err.Error())); err != nil {
+			log.Logf("grpc: Server.serveStream failed to write status: %v", gerr)
 		}
 		return
 	}
 
 	g.rpc.mu.Lock()
-	service := g.rpc.serviceMap[serviceMethod[0]]
+	service := g.rpc.serviceMap[serviceName]
 	g.rpc.mu.Unlock()
 	if service == nil {
 		if err := t.WriteStatus(stream, status.New(codes.Unimplemented, fmt.Sprintf("unknown service %v", service))); err != nil {
@@ -202,7 +176,7 @@ func (g *grpcServer) serveStream(t transport.ServerTransport, stream *transport.
 		return
 	}
 
-	mtype := service.method[serviceMethod[1]]
+	mtype := service.method[methodName]
 	if mtype == nil {
 		if err := t.WriteStatus(stream, status.New(codes.Unimplemented, fmt.Sprintf("unknown service %v", service))); err != nil {
 			log.Logf("grpc: Server.serveStream failed to write status: %v", err)
