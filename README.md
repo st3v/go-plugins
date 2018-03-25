@@ -11,12 +11,16 @@ Check out the [Micro on NATS](https://micro.mu/blog/2016/04/11/micro-on-nats.htm
 
 Follow us on [Twitter](https://twitter.com/microhq) or join the [Slack](http://slack.micro.mu/) community.
 
+## Getting Started
+
 - [Contents](#contents)
-- [Contributions](#contributions)
 - [Usage](#usage)
+- [Build Pattern)(#build-pattern)
+- [Contributions](#contributions)
 
 ## Contents
 
+Contents of this repository:
 
 Directory	|	Description
 ---		|	---
@@ -34,13 +38,6 @@ Trace		|	Distributed Tracing; Zipkin
 Transport	|	Bidirectional Streaming; NATS, RabbitMQ
 Wrappers	|	Middleware; Circuit Breakers, Rate Limiting
 
-
-## Contributions
-
-Feature		|	Description		|	Author
-----------	|	------------		|	--------
-[Registry/Kubernetes](https://godoc.org/github.com/micro/go-plugins/registry/kubernetes)	|	Service discovery via the Kubernetes API	|	[@nickjackson](https://github.com/nickjackson)
-[Registry/Zookeeper](https://godoc.org/github.com/micro/go-plugins/registry/zookeeper)	|	Service discovery using Zookeeper	|	[@HeavyHorst](https://github.com/HeavyHorst)
 
 ## Usage
 
@@ -142,3 +139,13 @@ MICRO_REGISTRY=kubernetes \
 MICRO_TRANSPORT=nats \
 service
 ```
+
+## Contributions
+
+A few contributions by others
+
+Feature		|	Description		|	Author
+----------	|	------------		|	--------
+[Registry/Kubernetes](https://godoc.org/github.com/micro/go-plugins/registry/kubernetes)	|	Service discovery via the Kubernetes API	|	[@nickjackson](https://github.com/nickjackson)
+[Registry/Zookeeper](https://godoc.org/github.com/micro/go-plugins/registry/zookeeper)	|	Service discovery using Zookeeper	|	[@HeavyHorst](https://github.com/HeavyHorst)
+
