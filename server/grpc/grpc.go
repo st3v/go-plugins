@@ -82,7 +82,7 @@ func (g *grpcServer) getCredentials() credentials.TransportCredentials {
 
 func (g *grpcServer) getHttp2TransportConfig() transport.ServerConfig {
 	if g.opts.Context != nil {
-		if v := g.opts.Context.Value(http2TransportConfig{}); v != nil {
+		if v := g.opts.Context.Value(transportConfig{}); v != nil {
 			return *v.(*transport.ServerConfig)
 		}
 	}
