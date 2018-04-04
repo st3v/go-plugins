@@ -4,7 +4,7 @@ A repository for micro plugins
 
 ## Overview
 
-Micro tooling is built on a powerful pluggable architecture. Plugins can be swapped out with zero code changes. 
+Micro tooling is built on a powerful pluggable architecture. Plugins can be swapped out with zero code changes.
 This repository contains plugins for all micro related tools. Read on for further info.
 
 Check out the [Micro on NATS](https://micro.mu/blog/2016/04/11/micro-on-nats.html) blog post to learn more about plugins.
@@ -13,31 +13,30 @@ Follow us on [Twitter](https://twitter.com/microhq) or join the [Slack](http://s
 
 ## Getting Started
 
-- [Contents](#contents)
-- [Usage](#usage)
-- [Build Pattern](#build-pattern)
-- [Contributions](#contributions)
+* [Contents](#contents)
+* [Usage](#usage)
+* [Build Pattern](#build-pattern)
+* [Contributions](#contributions)
 
 ## Contents
 
 Contents of this repository:
 
-Directory	|	Description
----		|	---
-Broker		|	PubSub messaging; NATS, NSQ, RabbitMQ, Kafka	
-Client		|	RPC Clients; gRPC, HTTP
-Codec		|	Message Encoding; BSON, Mercury
-KV		|	Key-Value; Memcached, Redis
-Metrics		|	Instrumentation; Statsd, Telegraf, Prometheus
-Micro		|	Micro Toolkit Plugins
-Registry	|	Service Discovery; Etcd, Gossip, NATS
-Selector	|	Load balancing; Label, Cache, Static
-Server		|	RPC Servers; gRPC, HTTP
-Sync		|	Locking/Leadership election; Consul, Etcd
-Trace		|	Distributed Tracing; Zipkin
-Transport	|	Bidirectional Streaming; NATS, RabbitMQ
-Wrappers	|	Middleware; Circuit Breakers, Rate Limiting
-
+| Directory | Description                                          |
+| --------- | ---------------------------------------------------- |
+| Broker    | PubSub messaging; NATS, NSQ, RabbitMQ, Kafka         |
+| Client    | RPC Clients; gRPC, HTTP                              |
+| Codec     | Message Encoding; BSON, Mercury                      |
+| KV        | Key-Value; Memcached, Redis                          |
+| Metrics   | Instrumentation; Statsd, Telegraf, Prometheus        |
+| Micro     | Micro Toolkit Plugins                                |
+| Registry  | Service Discovery; Etcd, Gossip, NATS                |
+| Selector  | Load balancing; Label, Cache, Static                 |
+| Server    | RPC Servers; gRPC, HTTP                              |
+| Sync      | Locking/Leadership election; Consul, Etcd            |
+| Trace     | Distributed Tracing; Zipkin                          |
+| Transport | Bidirectional Streaming; NATS, RabbitMQ              |
+| Wrappers  | Middleware; Circuit Breakers, Rate Limiting, Tracing |
 
 ## Usage
 
@@ -59,7 +58,7 @@ func main() {
 }
 ```
 
-The same is achieved when calling ```service.Init```
+The same is achieved when calling `service.Init`
 
 ```go
 import (
@@ -112,11 +111,12 @@ func main() {
 
 ## Build Pattern
 
-An anti-pattern is modifying the `main.go` file to include plugins. Best practice recommendation is to include 
-plugins in a separate file and rebuild with it included. This allows for automation of building plugins and 
+An anti-pattern is modifying the `main.go` file to include plugins. Best practice recommendation is to include
+plugins in a separate file and rebuild with it included. This allows for automation of building plugins and
 clean separation of concerns.
 
 Create file plugins.go
+
 ```go
 package main
 
@@ -128,11 +128,13 @@ import (
 ```
 
 Build with plugins.go
+
 ```shell
 go build -o service main.go plugins.go
 ```
 
 Run with plugins
+
 ```shell
 MICRO_BROKER=rabbitmq \
 MICRO_REGISTRY=kubernetes \
@@ -144,8 +146,7 @@ service
 
 A few contributions by others
 
-Feature		|	Description		|	Author
-----------	|	------------		|	--------
-[Registry/Kubernetes](https://godoc.org/github.com/micro/go-plugins/registry/kubernetes)	|	Service discovery via the Kubernetes API	|	[@nickjackson](https://github.com/nickjackson)
-[Registry/Zookeeper](https://godoc.org/github.com/micro/go-plugins/registry/zookeeper)	|	Service discovery using Zookeeper	|	[@HeavyHorst](https://github.com/HeavyHorst)
-
+| Feature                                                                                  | Description                              | Author                                         |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------- |
+| [Registry/Kubernetes](https://godoc.org/github.com/micro/go-plugins/registry/kubernetes) | Service discovery via the Kubernetes API | [@nickjackson](https://github.com/nickjackson) |
+| [Registry/Zookeeper](https://godoc.org/github.com/micro/go-plugins/registry/zookeeper)   | Service discovery using Zookeeper        | [@HeavyHorst](https://github.com/HeavyHorst)   |
