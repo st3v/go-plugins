@@ -78,7 +78,6 @@ func getTraceFromCtx(ctx context.Context) *trace.SpanContext {
 
 	encodedTraceCtx, ok := md[TracePropagationField]
 	if !ok {
-		log.Log("Missing trace context in incoming request")
 		return nil
 	}
 
