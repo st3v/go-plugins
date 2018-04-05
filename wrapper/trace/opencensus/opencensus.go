@@ -62,16 +62,12 @@ func (w *clientWrapper) Publish(ctx context.Context, p client.Publication, opts 
 	return w.Client.Publish(ctx, p, opts...)
 }
 
-// WrapClient implements client.Wrapper to wrap a client
-// and add monitoring to outgoing requests.
-func WrapClient(c client.Client) client.Client {
-	return &clientWrapper{c}
-}
-
 // NewClientWrapper returns a client.Wrapper
 // that adds monitoring to outgoing requests.
 func NewClientWrapper() client.Wrapper {
-	return WrapClient
+	return func(c client.Client) client.Client {
+		return &clientWrapper{c}
+	}
 }
 
 func getTraceFromCtx(ctx context.Context) *trace.SpanContext {
