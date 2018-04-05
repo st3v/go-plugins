@@ -43,23 +43,25 @@ func (w *clientWrapper) Call(
 	ctx context.Context,
 	req client.Request,
 	rsp interface{},
-	opts ...client.CallOption) error {
+	opts ...client.CallOption) (err error) {
 	ctx, span := trace.StartSpan(ctx, fmt.Sprintf("rpc/call/%s/%s", req.Service(), req.Method()))
-	defer span.End()
+	defer func() { endSpan(span, err) }()
 
 	ctx = injectTraceIntoCtx(ctx, span)
 
-	return w.Client.Call(ctx, req, rsp, opts...)
+	err = w.Client.Call(ctx, req, rsp, opts...)
+	return
 }
 
 // Publish implements client.Client.Publish.
-func (w *clientWrapper) Publish(ctx context.Context, p client.Publication, opts ...client.PublishOption) error {
+func (w *clientWrapper) Publish(ctx context.Context, p client.Publication, opts ...client.PublishOption) (err error) {
 	ctx, span := trace.StartSpan(ctx, fmt.Sprintf("rpc/publish/%s", p.Topic()))
-	defer span.End()
+	defer func() { endSpan(span, err) }()
 
 	ctx = injectTraceIntoCtx(ctx, span)
 
-	return w.Client.Publish(ctx, p, opts...)
+	err = w.Client.Publish(ctx, p, opts...)
+	return
 }
 
 // NewClientWrapper returns a client.Wrapper
@@ -100,9 +102,9 @@ func getTraceFromCtx(ctx context.Context) *trace.SpanContext {
 // that adds tracing to incoming requests.
 func NewHandlerWrapper() server.HandlerWrapper {
 	return func(fn server.HandlerFunc) server.HandlerFunc {
-		return func(ctx context.Context, req server.Request, rsp interface{}) error {
+		return func(ctx context.Context, req server.Request, rsp interface{}) (err error) {
 			var span *trace.Span
-			defer span.End()
+			defer func() { endSpan(span, err) }()
 
 			spanCtx := getTraceFromCtx(ctx)
 			if spanCtx != nil {
@@ -119,7 +121,8 @@ func NewHandlerWrapper() server.HandlerWrapper {
 				)
 			}
 
-			return fn(ctx, req, rsp)
+			err = fn(ctx, req, rsp)
+			return
 		}
 	}
 }
@@ -128,9 +131,9 @@ func NewHandlerWrapper() server.HandlerWrapper {
 // that adds tracing to subscription requests.
 func NewSubscriberWrapper() server.SubscriberWrapper {
 	return func(fn server.SubscriberFunc) server.SubscriberFunc {
-		return func(ctx context.Context, p server.Publication) error {
+		return func(ctx context.Context, p server.Publication) (err error) {
 			var span *trace.Span
-			defer span.End()
+			defer func() { endSpan(span, err) }()
 
 			spanCtx := getTraceFromCtx(ctx)
 			if spanCtx != nil {
@@ -147,7 +150,8 @@ func NewSubscriberWrapper() server.SubscriberWrapper {
 				)
 			}
 
-			return fn(ctx, p)
+			err = fn(ctx, p)
+			return
 		}
 	}
 }
