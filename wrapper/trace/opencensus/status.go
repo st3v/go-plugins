@@ -19,8 +19,7 @@ var microCodeToStatusCode = map[int32]code.Code{
 	500: code.Code_INTERNAL,
 }
 
-// endSpan sets the span status depending on the error and ends the span.
-func endSpan(span *trace.Span, err error) {
+func getResponseStatus(err error) trace.Status {
 	if err != nil {
 		microErr, ok := err.(*microerr.Error)
 		if ok {
@@ -30,17 +29,17 @@ func endSpan(span *trace.Span, err error) {
 				statusCode = int32(code)
 			}
 
-			span.SetStatus(trace.Status{
+			return trace.Status{
 				Code:    statusCode,
 				Message: fmt.Sprintf("%s: %s", microErr.Id, microErr.Detail),
-			})
-		} else {
-			span.SetStatus(trace.Status{
-				Code:    int32(code.Code_UNKNOWN),
-				Message: err.Error(),
-			})
+			}
+		}
+
+		return trace.Status{
+			Code:    int32(code.Code_UNKNOWN),
+			Message: err.Error(),
 		}
 	}
 
-	span.End()
+	return trace.Status{}
 }

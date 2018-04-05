@@ -44,10 +44,12 @@ func (w *clientWrapper) Call(
 	req client.Request,
 	rsp interface{},
 	opts ...client.CallOption) (err error) {
-	ctx, span := trace.StartSpan(ctx, fmt.Sprintf("rpc/call/%s/%s", req.Service(), req.Method()))
-	defer func() { endSpan(span, err) }()
+	t := newRequestTracker(req, ClientProfile)
+	ctx = t.start(ctx, true)
 
-	ctx = injectTraceIntoCtx(ctx, span)
+	defer func() { t.end(ctx, err) }()
+
+	ctx = injectTraceIntoCtx(ctx, t.span)
 
 	err = w.Client.Call(ctx, req, rsp, opts...)
 	return
@@ -55,10 +57,12 @@ func (w *clientWrapper) Call(
 
 // Publish implements client.Client.Publish.
 func (w *clientWrapper) Publish(ctx context.Context, p client.Publication, opts ...client.PublishOption) (err error) {
-	ctx, span := trace.StartSpan(ctx, fmt.Sprintf("rpc/publish/%s", p.Topic()))
-	defer func() { endSpan(span, err) }()
+	t := newPublicationTracker(p, ClientProfile)
+	ctx = t.start(ctx, true)
 
-	ctx = injectTraceIntoCtx(ctx, span)
+	defer func() { t.end(ctx, err) }()
+
+	ctx = injectTraceIntoCtx(ctx, t.span)
 
 	err = w.Client.Publish(ctx, p, opts...)
 	return
@@ -103,21 +107,23 @@ func getTraceFromCtx(ctx context.Context) *trace.SpanContext {
 func NewHandlerWrapper() server.HandlerWrapper {
 	return func(fn server.HandlerFunc) server.HandlerFunc {
 		return func(ctx context.Context, req server.Request, rsp interface{}) (err error) {
-			var span *trace.Span
-			defer func() { endSpan(span, err) }()
+			t := newRequestTracker(req, ServerProfile)
+			ctx = t.start(ctx, false)
+
+			defer func() { t.end(ctx, err) }()
 
 			spanCtx := getTraceFromCtx(ctx)
 			if spanCtx != nil {
-				span = trace.NewSpanWithRemoteParent(
-					fmt.Sprintf("rpc/handle/%s/%s", req.Service(), req.Method()),
+				t.span = trace.NewSpanWithRemoteParent(
+					fmt.Sprintf("rpc/%s/%s/%s", ServerProfile.Role, req.Service(), req.Method()),
 					*spanCtx,
 					trace.StartOptions{},
 				)
-				ctx = trace.WithSpan(ctx, span)
+				ctx = trace.WithSpan(ctx, t.span)
 			} else {
-				ctx, span = trace.StartSpan(
+				ctx, t.span = trace.StartSpan(
 					ctx,
-					fmt.Sprintf("rpc/handle/%s/%s", req.Service(), req.Method()),
+					fmt.Sprintf("rpc/%s/%s/%s", ServerProfile.Role, req.Service(), req.Method()),
 				)
 			}
 
@@ -132,21 +138,23 @@ func NewHandlerWrapper() server.HandlerWrapper {
 func NewSubscriberWrapper() server.SubscriberWrapper {
 	return func(fn server.SubscriberFunc) server.SubscriberFunc {
 		return func(ctx context.Context, p server.Publication) (err error) {
-			var span *trace.Span
-			defer func() { endSpan(span, err) }()
+			t := newPublicationTracker(p, ServerProfile)
+			ctx = t.start(ctx, false)
+
+			defer func() { t.end(ctx, err) }()
 
 			spanCtx := getTraceFromCtx(ctx)
 			if spanCtx != nil {
-				span = trace.NewSpanWithRemoteParent(
-					fmt.Sprintf("rpc/subscribe/%s", p.Topic()),
+				t.span = trace.NewSpanWithRemoteParent(
+					fmt.Sprintf("rpc/%s/pubsub/%s", ServerProfile.Role, p.Topic()),
 					*spanCtx,
 					trace.StartOptions{},
 				)
-				ctx = trace.WithSpan(ctx, span)
+				ctx = trace.WithSpan(ctx, t.span)
 			} else {
-				ctx, span = trace.StartSpan(
+				ctx, t.span = trace.StartSpan(
 					ctx,
-					fmt.Sprintf("rpc/subscribe/%s", p.Topic()),
+					fmt.Sprintf("rpc/%s/pubsub/%s", ServerProfile.Role, p.Topic()),
 				)
 			}
 

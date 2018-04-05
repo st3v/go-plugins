@@ -12,3 +12,20 @@ service := micro.NewService(
     micro.WrapSubscriber(opencensus.NewSubscriberWrapper()),
 )
 ```
+
+### Views
+
+The OpenCensus package exposes some convenience views.
+Don't forget to register these views:
+
+```go
+// Register to all RPC server views.
+if err := view.Register(opencensus.DefaultServerViews...); err != nil {
+    log.Fatal(err)
+}
+
+// Register to all RPC client views.
+if err := view.Register(opencensus.DefaultClientViews...); err != nil {
+    log.Fatal(err)
+}
+```
