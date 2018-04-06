@@ -43,35 +43,37 @@ func (w *clientWrapper) Call(
 	ctx context.Context,
 	req client.Request,
 	rsp interface{},
-	opts ...client.CallOption) error {
-	ctx, span := trace.StartSpan(ctx, fmt.Sprintf("rpc/call/%s/%s", req.Service(), req.Method()))
-	defer span.End()
+	opts ...client.CallOption) (err error) {
+	t := newRequestTracker(req, ClientProfile)
+	ctx = t.start(ctx, true)
 
-	ctx = injectTraceIntoCtx(ctx, span)
+	defer func() { t.end(ctx, err) }()
 
-	return w.Client.Call(ctx, req, rsp, opts...)
+	ctx = injectTraceIntoCtx(ctx, t.span)
+
+	err = w.Client.Call(ctx, req, rsp, opts...)
+	return
 }
 
 // Publish implements client.Client.Publish.
-func (w *clientWrapper) Publish(ctx context.Context, p client.Publication, opts ...client.PublishOption) error {
-	ctx, span := trace.StartSpan(ctx, fmt.Sprintf("rpc/publish/%s", p.Topic()))
-	defer span.End()
+func (w *clientWrapper) Publish(ctx context.Context, p client.Publication, opts ...client.PublishOption) (err error) {
+	t := newPublicationTracker(p, ClientProfile)
+	ctx = t.start(ctx, true)
 
-	ctx = injectTraceIntoCtx(ctx, span)
+	defer func() { t.end(ctx, err) }()
 
-	return w.Client.Publish(ctx, p, opts...)
-}
+	ctx = injectTraceIntoCtx(ctx, t.span)
 
-// WrapClient implements client.Wrapper to wrap a client
-// and add monitoring to outgoing requests.
-func WrapClient(c client.Client) client.Client {
-	return &clientWrapper{c}
+	err = w.Client.Publish(ctx, p, opts...)
+	return
 }
 
 // NewClientWrapper returns a client.Wrapper
 // that adds monitoring to outgoing requests.
 func NewClientWrapper() client.Wrapper {
-	return WrapClient
+	return func(c client.Client) client.Client {
+		return &clientWrapper{c}
+	}
 }
 
 func getTraceFromCtx(ctx context.Context) *trace.SpanContext {
@@ -82,7 +84,6 @@ func getTraceFromCtx(ctx context.Context) *trace.SpanContext {
 
 	encodedTraceCtx, ok := md[TracePropagationField]
 	if !ok {
-		log.Log("Missing trace context in incoming request")
 		return nil
 	}
 
@@ -105,26 +106,29 @@ func getTraceFromCtx(ctx context.Context) *trace.SpanContext {
 // that adds tracing to incoming requests.
 func NewHandlerWrapper() server.HandlerWrapper {
 	return func(fn server.HandlerFunc) server.HandlerFunc {
-		return func(ctx context.Context, req server.Request, rsp interface{}) error {
-			var span *trace.Span
-			defer span.End()
+		return func(ctx context.Context, req server.Request, rsp interface{}) (err error) {
+			t := newRequestTracker(req, ServerProfile)
+			ctx = t.start(ctx, false)
+
+			defer func() { t.end(ctx, err) }()
 
 			spanCtx := getTraceFromCtx(ctx)
 			if spanCtx != nil {
-				span = trace.NewSpanWithRemoteParent(
-					fmt.Sprintf("rpc/handle/%s/%s", req.Service(), req.Method()),
+				t.span = trace.NewSpanWithRemoteParent(
+					fmt.Sprintf("rpc/%s/%s/%s", ServerProfile.Role, req.Service(), req.Method()),
 					*spanCtx,
 					trace.StartOptions{},
 				)
-				ctx = trace.WithSpan(ctx, span)
+				ctx = trace.WithSpan(ctx, t.span)
 			} else {
-				ctx, span = trace.StartSpan(
+				ctx, t.span = trace.StartSpan(
 					ctx,
-					fmt.Sprintf("rpc/handle/%s/%s", req.Service(), req.Method()),
+					fmt.Sprintf("rpc/%s/%s/%s", ServerProfile.Role, req.Service(), req.Method()),
 				)
 			}
 
-			return fn(ctx, req, rsp)
+			err = fn(ctx, req, rsp)
+			return
 		}
 	}
 }
@@ -133,26 +137,29 @@ func NewHandlerWrapper() server.HandlerWrapper {
 // that adds tracing to subscription requests.
 func NewSubscriberWrapper() server.SubscriberWrapper {
 	return func(fn server.SubscriberFunc) server.SubscriberFunc {
-		return func(ctx context.Context, p server.Publication) error {
-			var span *trace.Span
-			defer span.End()
+		return func(ctx context.Context, p server.Publication) (err error) {
+			t := newPublicationTracker(p, ServerProfile)
+			ctx = t.start(ctx, false)
+
+			defer func() { t.end(ctx, err) }()
 
 			spanCtx := getTraceFromCtx(ctx)
 			if spanCtx != nil {
-				span = trace.NewSpanWithRemoteParent(
-					fmt.Sprintf("rpc/subscribe/%s", p.Topic()),
+				t.span = trace.NewSpanWithRemoteParent(
+					fmt.Sprintf("rpc/%s/pubsub/%s", ServerProfile.Role, p.Topic()),
 					*spanCtx,
 					trace.StartOptions{},
 				)
-				ctx = trace.WithSpan(ctx, span)
+				ctx = trace.WithSpan(ctx, t.span)
 			} else {
-				ctx, span = trace.StartSpan(
+				ctx, t.span = trace.StartSpan(
 					ctx,
-					fmt.Sprintf("rpc/subscribe/%s", p.Topic()),
+					fmt.Sprintf("rpc/%s/pubsub/%s", ServerProfile.Role, p.Topic()),
 				)
 			}
 
-			return fn(ctx, p)
+			err = fn(ctx, p)
+			return
 		}
 	}
 }
