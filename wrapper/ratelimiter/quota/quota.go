@@ -17,7 +17,7 @@ import (
 
 type quota struct {
 	service string
-	qcl     proto.QuotaClient
+	qcl     proto.QuotaService
 	client.Client
 }
 
@@ -81,7 +81,7 @@ func NewClientWrapper(service string) client.Wrapper {
 	return func(c client.Client) client.Client {
 		return &quota{
 			service: service,
-			qcl:     proto.NewQuotaClient("go.micro.srv.quota", c),
+			qcl:     proto.QuotaServiceClient("go.micro.srv.quota", c),
 			Client:  c,
 		}
 	}
