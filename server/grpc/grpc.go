@@ -23,8 +23,8 @@ import (
 	meta "github.com/micro/go-micro/metadata"
 	"github.com/micro/go-micro/registry"
 	"github.com/micro/go-micro/server"
-	"github.com/micro/misc/lib/addr"
-	mgrpc "github.com/micro/misc/lib/grpc"
+	"github.com/micro/util/go/lib/addr"
+	mgrpc "github.com/micro/util/go/lib/grpc"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
