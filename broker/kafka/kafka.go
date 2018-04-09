@@ -6,9 +6,9 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/micro/go-log"
-	"github.com/micro/go-micro/broker"
-	"github.com/micro/go-micro/broker/codec/json"
-	"github.com/micro/go-micro/cmd"
+	"github.com/divisionone/go-micro/broker"
+	"github.com/divisionone/go-micro/broker/codec/json"
+	"github.com/divisionone/go-micro/cmd"
 	"github.com/pborman/uuid"
 	sc "gopkg.in/bsm/sarama-cluster.v2"
 )

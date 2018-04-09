@@ -15,7 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/micro/go-log"
-	"github.com/micro/go-micro/server"
+	"github.com/divisionone/go-micro/server"
 )
 
 var (

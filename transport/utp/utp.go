@@ -7,8 +7,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/micro/go-micro/cmd"
-	"github.com/micro/go-micro/transport"
+	"github.com/divisionone/go-micro/cmd"
+	"github.com/divisionone/go-micro/transport"
 )
 
 type utpTransport struct {

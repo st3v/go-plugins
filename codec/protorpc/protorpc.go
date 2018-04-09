@@ -4,14 +4,14 @@ package protorpc
 import (
 	"io"
 
-	"github.com/micro/go-micro/codec"
-	"github.com/micro/go-micro/codec/protorpc"
+	"github.com/divisionone/go-micro/codec"
+	"github.com/divisionone/go-micro/codec/protorpc"
 )
 
 /*
 	PROTO-RPC is one of the default codecs in go-micro.
 	Content type used is application/protobuf or application/proto-rpc
-	Implementation here https://godoc.org/github.com/micro/go-micro/codec/protorpc
+	Implementation here https://godoc.org/github.com/divisionone/go-micro/codec/protorpc
 	We have a link here for completeness
 */
 

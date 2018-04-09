@@ -8,8 +8,8 @@ import (
 
 	"context"
 	"github.com/micro/go-awsxray"
-	"github.com/micro/go-micro/errors"
-	"github.com/micro/go-micro/metadata"
+	"github.com/divisionone/go-micro/errors"
+	"github.com/divisionone/go-micro/metadata"
 )
 
 // getHTTP returns a http struct

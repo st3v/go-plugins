@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/micro/go-micro/registry"
-	"github.com/micro/go-micro/registry/mock"
-	"github.com/micro/go-micro/selector"
+	"github.com/divisionone/go-micro/registry"
+	"github.com/divisionone/go-micro/registry/mock"
+	"github.com/divisionone/go-micro/selector"
 )
 
 func TestDefaultSelector(t *testing.T) {

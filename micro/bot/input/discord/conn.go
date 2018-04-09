@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/micro/go-bot/input"
+	"github.com/divisionone/go-bot/input"
 	"github.com/micro/go-log"
 )
 

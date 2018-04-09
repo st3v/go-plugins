@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/micro/go-micro/registry"
+	"github.com/divisionone/go-micro/registry"
 	sync "github.com/micro/go-os/sync"
 )
 

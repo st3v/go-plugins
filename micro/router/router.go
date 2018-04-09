@@ -13,7 +13,7 @@ import (
 	"github.com/micro/go-os/config"
 	"github.com/micro/go-os/config/source/file"
 	"github.com/micro/go-os/log"
-	"github.com/micro/micro/plugin"
+	"github.com/divisionone/micro/plugin"
 )
 
 type Option func(o *Options)

@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/micro/go-log"
-	"github.com/micro/go-micro/registry"
+	"github.com/divisionone/go-micro/registry"
 	"github.com/micro/go-os/trace"
-	"github.com/micro/go-plugins/trace/zipkin/thrift/gen-go/zipkincore"
+	"github.com/divisionone/go-plugins/trace/zipkin/thrift/gen-go/zipkincore"
 
 	"github.com/apache/thrift/lib/go/thrift"
 	sarama "gopkg.in/Shopify/sarama.v1"

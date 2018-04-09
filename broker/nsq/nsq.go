@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/micro/go-micro/broker"
-	"github.com/micro/go-micro/broker/codec/json"
-	"github.com/micro/go-micro/cmd"
+	"github.com/divisionone/go-micro/broker"
+	"github.com/divisionone/go-micro/broker/codec/json"
+	"github.com/divisionone/go-micro/cmd"
 	"github.com/nsqio/go-nsq"
 	"github.com/pborman/uuid"
 )

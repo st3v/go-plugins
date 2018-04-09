@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/micro/go-micro/transport"
+	"github.com/divisionone/go-micro/transport"
 )
 
 func expectedPort(t *testing.T, expected string, lsn transport.Listener) {

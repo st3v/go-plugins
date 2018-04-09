@@ -4,10 +4,10 @@ package shard
 import (
 	"hash/crc32"
 
-	"github.com/micro/go-micro/client"
-	"github.com/micro/go-micro/metadata"
-	"github.com/micro/go-micro/registry"
-	"github.com/micro/go-micro/selector"
+	"github.com/divisionone/go-micro/client"
+	"github.com/divisionone/go-micro/metadata"
+	"github.com/divisionone/go-micro/registry"
+	"github.com/divisionone/go-micro/selector"
 
 	"context"
 )

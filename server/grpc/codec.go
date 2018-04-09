@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/micro/go-micro/codec"
-	"github.com/micro/go-micro/codec/jsonrpc"
-	"github.com/micro/go-micro/codec/protorpc"
+	"github.com/divisionone/go-micro/codec"
+	"github.com/divisionone/go-micro/codec/jsonrpc"
+	"github.com/divisionone/go-micro/codec/protorpc"
 	"google.golang.org/grpc"
 )
 

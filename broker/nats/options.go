@@ -3,7 +3,7 @@ package nats
 import (
 	"context"
 
-	"github.com/micro/go-micro/broker"
+	"github.com/divisionone/go-micro/broker"
 	"github.com/nats-io/nats"
 )
 

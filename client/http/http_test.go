@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/micro/go-micro/client"
-	"github.com/micro/go-micro/registry"
-	"github.com/micro/go-micro/selector"
-	"github.com/micro/go-plugins/client/http/test"
-	"github.com/micro/go-plugins/registry/memory"
+	"github.com/divisionone/go-micro/client"
+	"github.com/divisionone/go-micro/registry"
+	"github.com/divisionone/go-micro/selector"
+	"github.com/divisionone/go-plugins/client/http/test"
+	"github.com/divisionone/go-plugins/registry/memory"
 )
 
 func TestHTTPClient(t *testing.T) {

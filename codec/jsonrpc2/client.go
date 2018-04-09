@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/micro/go-micro/codec"
+	"github.com/divisionone/go-micro/codec"
 )
 
 const seqNotify = math.MaxUint64

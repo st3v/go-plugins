@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/coreos/etcd/client"
-	"github.com/micro/go-micro/registry"
+	"github.com/divisionone/go-micro/registry"
 	psync "github.com/micro/go-os/sync"
 )
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/micro/cli"
-	"github.com/micro/micro/plugin"
+	"github.com/divisionone/micro/plugin"
 	"github.com/rs/cors"
 )
 

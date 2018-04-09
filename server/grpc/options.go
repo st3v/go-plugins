@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 
-	"github.com/micro/go-micro/broker"
-	"github.com/micro/go-micro/codec"
-	"github.com/micro/go-micro/registry"
-	"github.com/micro/go-micro/server"
-	"github.com/micro/go-micro/server/debug"
-	"github.com/micro/go-micro/transport"
+	"github.com/divisionone/go-micro/broker"
+	"github.com/divisionone/go-micro/codec"
+	"github.com/divisionone/go-micro/registry"
+	"github.com/divisionone/go-micro/server"
+	"github.com/divisionone/go-micro/server/debug"
+	"github.com/divisionone/go-micro/transport"
 	"google.golang.org/grpc"
 	grpcTransport "google.golang.org/grpc/transport"
 )

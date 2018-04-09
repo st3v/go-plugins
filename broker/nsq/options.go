@@ -3,13 +3,13 @@ package nsq
 import (
 	"context"
 
-	"github.com/micro/go-micro/broker"
+	"github.com/divisionone/go-micro/broker"
 )
 
 type contextKeyT string
 
 var (
-	concurrentHandlerKey = contextKeyT("github.com/micro/go-plugins/broker/nsq/concurrentHandlers")
+	concurrentHandlerKey = contextKeyT("github.com/divisionone/go-plugins/broker/nsq/concurrentHandlers")
 )
 
 func ConcurrentHandlers(n int) broker.SubscribeOption {

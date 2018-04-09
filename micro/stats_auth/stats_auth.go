@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/micro/cli"
-	"github.com/micro/micro/plugin"
+	"github.com/divisionone/micro/plugin"
 )
 
 const (

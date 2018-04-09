@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/micro/go-micro/codec"
+	"github.com/divisionone/go-micro/codec"
 	"github.com/tinylib/msgp/msgp"
 )
 

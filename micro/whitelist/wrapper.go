@@ -3,8 +3,8 @@ package whitelist
 import (
 	"context"
 
-	"github.com/micro/go-micro/client"
-	"github.com/micro/go-micro/errors"
+	"github.com/divisionone/go-micro/client"
+	"github.com/divisionone/go-micro/errors"
 )
 
 type wrapper struct {

@@ -1,9 +1,9 @@
 package named
 
 import (
-	"github.com/micro/go-micro/cmd"
-	"github.com/micro/go-micro/registry"
-	"github.com/micro/go-micro/selector"
+	"github.com/divisionone/go-micro/cmd"
+	"github.com/divisionone/go-micro/registry"
+	"github.com/divisionone/go-micro/selector"
 )
 
 type namedSelector struct{}

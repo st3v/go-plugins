@@ -9,12 +9,9 @@ import (
 	"github.com/divisionone/go-micro/broker/codec/json"
 	"github.com/divisionone/go-micro/cmd"
 	"github.com/nats-io/nats"
-
-	"sync"
 )
 
 type nbroker struct {
-	sync.Mutex
 	addrs []string
 	conn  *nats.Conn
 	opts  broker.Options
@@ -88,9 +85,6 @@ func setAddrs(addrs []string) []string {
 }
 
 func (n *nbroker) Connect() error {
-	n.Lock()
-	defer n.Unlock()
-
 	if n.conn != nil {
 		return nil
 	}

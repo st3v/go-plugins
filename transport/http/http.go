@@ -2,13 +2,13 @@
 package http
 
 import (
-	"github.com/micro/go-micro/transport"
-	"github.com/micro/go-micro/transport/http"
+	"github.com/divisionone/go-micro/transport"
+	"github.com/divisionone/go-micro/transport/http"
 )
 
 /*
 	HTTP transport is the default synchronous communication mechanism for go-micro.
-	Implementation here https://godoc.org/github.com/micro/go-micro/transport/http
+	Implementation here https://godoc.org/github.com/divisionone/go-micro/transport/http
 	We add a link here for completeness
 */
 

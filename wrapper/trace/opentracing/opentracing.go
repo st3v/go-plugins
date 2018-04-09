@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"context"
-	"github.com/micro/go-micro/client"
-	"github.com/micro/go-micro/metadata"
-	"github.com/micro/go-micro/server"
+	"github.com/divisionone/go-micro/client"
+	"github.com/divisionone/go-micro/metadata"
+	"github.com/divisionone/go-micro/server"
 	"github.com/opentracing/opentracing-go"
 )
 

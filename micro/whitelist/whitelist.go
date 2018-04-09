@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/micro/cli"
-	"github.com/micro/go-micro/client"
-	"github.com/micro/micro/plugin"
+	"github.com/divisionone/go-micro/client"
+	"github.com/divisionone/micro/plugin"
 )
 
 type whitelist struct {

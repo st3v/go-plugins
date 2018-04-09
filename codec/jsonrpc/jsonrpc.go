@@ -4,14 +4,14 @@ package jsonrpc
 import (
 	"io"
 
-	"github.com/micro/go-micro/codec"
-	"github.com/micro/go-micro/codec/jsonrpc"
+	"github.com/divisionone/go-micro/codec"
+	"github.com/divisionone/go-micro/codec/jsonrpc"
 )
 
 /*
 	JSON-RPC is one of the default codecs in go-micro.
 	Content type used is application/json or application/json-rpc
-	Implementation here https://godoc.org/github.com/micro/go-micro/codec/jsonrpc
+	Implementation here https://godoc.org/github.com/divisionone/go-micro/codec/jsonrpc
 	We have a link here for completeness
 */
 

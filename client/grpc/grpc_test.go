@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/micro/go-micro/client"
-	"github.com/micro/go-micro/registry"
-	"github.com/micro/go-micro/registry/mock"
-	"github.com/micro/go-micro/selector"
+	"github.com/divisionone/go-micro/client"
+	"github.com/divisionone/go-micro/registry"
+	"github.com/divisionone/go-micro/registry/mock"
+	"github.com/divisionone/go-micro/selector"
 	"google.golang.org/grpc"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 )

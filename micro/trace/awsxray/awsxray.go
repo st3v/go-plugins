@@ -6,9 +6,9 @@ import (
 
 	"github.com/micro/cli"
 	"github.com/micro/go-awsxray"
-	"github.com/micro/go-micro/client"
-	xray "github.com/micro/go-plugins/wrapper/trace/awsxray"
-	"github.com/micro/micro/plugin"
+	"github.com/divisionone/go-micro/client"
+	xray "github.com/divisionone/go-plugins/wrapper/trace/awsxray"
+	"github.com/divisionone/micro/plugin"
 )
 
 type awsXRay struct {

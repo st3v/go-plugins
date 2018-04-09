@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/micro/go-micro/broker"
-	"github.com/micro/go-micro/codec"
-	"github.com/micro/go-micro/metadata"
-	"github.com/micro/go-micro/registry"
-	"github.com/micro/go-micro/server"
+	"github.com/divisionone/go-micro/broker"
+	"github.com/divisionone/go-micro/codec"
+	"github.com/divisionone/go-micro/metadata"
+	"github.com/divisionone/go-micro/registry"
+	"github.com/divisionone/go-micro/server"
 )
 
 const (

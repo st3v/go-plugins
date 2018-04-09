@@ -8,7 +8,7 @@ import (
 
 	"github.com/micro/cli"
 	"github.com/micro/go-log"
-	"github.com/micro/micro/plugin"
+	"github.com/divisionone/micro/plugin"
 )
 
 type whitelist struct {

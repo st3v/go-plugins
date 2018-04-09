@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/micro/go-micro/broker"
-	"github.com/micro/go-micro/cmd"
+	"github.com/divisionone/go-micro/broker"
+	"github.com/divisionone/go-micro/cmd"
 	"github.com/pborman/uuid"
 	"google.golang.org/api/option"
 )
