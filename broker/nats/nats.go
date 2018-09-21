@@ -90,8 +90,7 @@ func setAddrs(addrs []string) []string {
 func (n *nbroker) Connect() error {
 	n.Lock()
 	defer n.Unlock()
-
-	if n.conn != nil {
+	if n.conn != nil && n.conn.IsConnected() {
 		return nil
 	}
 
