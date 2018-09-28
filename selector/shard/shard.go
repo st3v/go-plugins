@@ -20,6 +20,18 @@ var zeroKey [32]byte
 // Usage:
 //    `myClient.MyCall(ctx, req, shard.Strategy(req.ID))`
 func Strategy(keys ...string) client.CallOption {
+	// If there's no keys, then we should not try to shard it.
+	empty := true
+	for _, key := range keys {
+		if key != "" {
+			empty = false
+			break
+		}
+	}
+	if empty {
+		return client.WithSelectOption()
+	}
+
 	return client.WithSelectOption(NewSelector(keys))
 }
 
