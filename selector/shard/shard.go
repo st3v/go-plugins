@@ -60,7 +60,7 @@ func Next(keys []string, services []*registry.Service) selector.Next {
 
 		if pos < 0 {
 			// There was no node found.
-			return nil, nil
+			return nil, selector.ErrNoneAvailable
 		}
 
 		// Choose this node and set it's score to zero to stop it being selected again.
