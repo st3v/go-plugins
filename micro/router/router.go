@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/micro/cli"
+	"github.com/divisionone/cli"
+	"github.com/divisionone/micro/plugin"
 	"github.com/micro/go-os/config"
 	"github.com/micro/go-os/config/source/file"
 	"github.com/micro/go-os/log"
-	"github.com/divisionone/micro/plugin"
 )
 
 type Option func(o *Options)
