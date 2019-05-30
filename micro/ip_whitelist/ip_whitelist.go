@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/micro/cli"
-	"github.com/micro/go-log"
+	"github.com/divisionone/cli"
 	"github.com/divisionone/micro/plugin"
+	"github.com/micro/go-log"
 )
 
 type whitelist struct {

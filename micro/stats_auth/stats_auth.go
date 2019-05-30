@@ -4,7 +4,7 @@ package stats_auth
 import (
 	"net/http"
 
-	"github.com/micro/cli"
+	"github.com/divisionone/cli"
 	"github.com/divisionone/micro/plugin"
 )
 
