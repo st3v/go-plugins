@@ -8,7 +8,7 @@ import (
 	"github.com/divisionone/go-micro/broker"
 	"github.com/divisionone/go-micro/broker/codec/json"
 	"github.com/divisionone/go-micro/cmd"
-	"github.com/nats-io/nats"
+	"github.com/nats-io/nats.go"
 
 	"sync"
 )
