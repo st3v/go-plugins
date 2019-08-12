@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/divisionone/go-micro/broker"
-	"github.com/nats-io/nats"
+	"github.com/nats-io/nats.go"
 )
 
 var addrTestCases = []struct {
